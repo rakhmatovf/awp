@@ -80,10 +80,10 @@ const limiter = rateLimit({
 // PostgreSQL
 const client = new Client({
   user: 'postgres',
-  host: 'shinkansen.proxy.rlwy.net',
+  host: 'shortline.proxy.rlwy.net',
   database: 'railway',
-  password: 'qWtAcQXebBALlLYZIaBndfKMWqIbiOLq',
-  port: 21259,
+  password: 'evZjwkeIsbkAFIPGkynCukQLWhJmiYMv',
+  port: 22592,
 });
 
 client.connect()
