@@ -7,7 +7,7 @@ app.use(awpMiddleware);
 app.use(express.json());
 
 app.get('/', (req, res) => {
-  res.send('Добро пожаловать в защищенное веб-приложение!');
+  res.send('Xavfsiz veb-ilovaga xush kelibsiz!');
 });
 
 app.get('/about', (req, res) => {
