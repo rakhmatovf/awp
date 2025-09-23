@@ -27,7 +27,7 @@
       const [saveStatusMessage, setSaveStatusMessage] = React.useState('');
       const [errorMessage, setErrorMessage] = React.useState('');
 
-      // Настройки модулей
+      // Modullarni sozlash
       const [sqlSettings, setSqlSettings] = React.useState({
         sqlProtection: true,
         xssProtection: true,
@@ -77,7 +77,7 @@
         customBlockPage: '/attacker-page'
       });
 
-      // Загрузка данных
+      // Ma'lumotlarni yuklash
       React.useEffect(() => {
         fetch('http://185.47.174.65:3000/api/settings')
           .then(r => r.json())
@@ -88,7 +88,7 @@
             setProxySettings(prev => ({ ...prev, ...data }));
             setBotSettings(prev => ({ ...prev, ...data }));
           })
-          .catch(err => console.error('Failed to load settings:', err));
+          .catch(err => console.error('Sozlamalarni yuklab boʻlmadi:', err));
 
         fetch('http://185.47.174.65:3000/api/logs')
           .then(r => r.json())
@@ -101,7 +101,7 @@
           .catch(err => console.error('Failed to load blacklist:', err));
       }, []);
 
-      // Фильтрация и пагинация логов
+      // Loglarni filtrlash va sahifakash
       const filteredLogs = logs.filter(log =>
         (searchTerm === '' || 
           log.ip.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -115,7 +115,7 @@
       const indexOfFirstLog = indexOfLastLog - logsPerPage;
       const currentLogs = filteredLogs.slice(indexOfFirstLog, indexOfLastLog);
 
-      // Фильтрация и пагинация черного списка
+      // Qora ro'yxatni filtrlash va sahifakash
       const filteredBlacklist = blacklist.filter(item =>
         searchTerm === '' ||
         item.entry.toLowerCase().includes(searchTerm.toLowerCase())
@@ -130,7 +130,7 @@
         setCurrentPage(1);
       }, [searchTerm, threatFilter]);
 
-      // Сохранение настроек
+      // Sozlamalarni qsaqlash
       const handleSaveSettings = async (settings, type) => {
         setSaveStatus('saving');
         try {
@@ -142,24 +142,24 @@
 
           if (response.ok) {
             setSaveStatus('success');
-            setSaveStatusMessage('Settings saved successfully!');
+            setSaveStatusMessage('Sozlamalar muvaffaqiyatli saqlandi!');
             setTimeout(() => setSaveStatus(''), 3000);
           } else {
             const data = await response.json();
             setSaveStatus('error');
-            setErrorMessage(data.error || 'Unknown error');
+            setErrorMessage(data.error || 'Noma'lum xatolik');
           }
         } catch (err) {
           setSaveStatus('error');
-          setErrorMessage('Network error');
-          console.error('Save error:', err);
+          setErrorMessage('Tarmoq xatoligi');
+          console.error('Saqlash xatosi:', err);
         }
       };
 
-      // Работа с черным списком
+      // Qora roʻyxat bilan ishlash
       const handleAddToBlacklist = async () => {
         if (!newBlacklistEntry || !newBlacklistEntry.trim()) {
-          alert('Введите IP или домен');
+          alert('IP yoki domenni kiriting');
           return;
         }
 
@@ -191,15 +191,15 @@
             }]);
             setNewBlacklistEntry('');
             setSaveStatus('success');
-            setSaveStatusMessage(`Entry "${entry}" added to blacklist${expires_at ? ` (expires: ${new Date(expires_at).toLocaleString()})` : ''}.`);
+            setSaveStatusMessage(` "${entry}" ta yozuv qora ro'yxatga kiritildi${expires_at ? ` (expires: ${new Date(expires_at).toLocaleString()})` : ''}.`);
             setTimeout(() => setSaveStatus(''), 3000);
           } else {
             const errData = await response.json();
-            setErrorMessage('Server error: ' + (errData.error || 'Unknown'));
+            setErrorMessage('Server xatoligi: ' + (errData.error || 'Unknown'));
             setSaveStatus('error');
           }
         } catch (err) {
-          setErrorMessage('Network error: ' + err.message);
+          setErrorMessage('Tarmoq xatoligi: ' + err.message);
           setSaveStatus('error');
           console.error('Fetch error:', err);
         }
@@ -214,17 +214,17 @@
           });
           setBlacklist(blacklist.filter(e => e.id !== id));
           setSaveStatus('success');
-          setSaveStatusMessage(`Entry "${entry.entry}" removed from blacklist.`);
+          setSaveStatusMessage(` "${entry.entry}" ta yozuv qora ro'yxatdan o'chirildi.`);
           setTimeout(() => setSaveStatus(''), 3000);
         } catch (err) {
           setSaveStatus('error');
-          setErrorMessage('Failed to delete from blacklist');
-          console.error('Failed to delete from blacklist:', err);
+          setErrorMessage('O‘chirib bo‘lmadi');
+          console.error('Qora ro‘yxatdan o‘chirib bo‘lmadi:', err);
         }
       };
 
       const handleClearBlacklist = async () => {
-        if (!window.confirm('Are you sure you want to delete ALL entries from the blacklist? This cannot be undone.')) return;
+        if (!window.confirm('Siz rostdan ham qora roʻyxatdan BARCHA yozuvlarni oʻchirmoqchimisiz? Bu amalni qaytarib boʻlmaydi!')) return;
 
         try {
           const response = await fetch('http://185.47.174.65:3000/api/blacklist', {
@@ -238,11 +238,11 @@
             setSaveStatusMessage('All entries removed from blacklist.');
             setTimeout(() => setSaveStatus(''), 3000);
           } else {
-            throw new Error('Failed to clear blacklist');
+            throw new Error('Tozalash muvaffaqiyatsiz');
           }
         } catch (err) {
           setSaveStatus('error');
-          setErrorMessage('Failed to clear blacklist');
+          setErrorMessage('Tozalash muvaffaqiyatsiz');
           console.error('Clear blacklist error:', err);
         }
       };
@@ -313,12 +313,12 @@
               created_at: new Date().toISOString()
             }]);
             setSaveStatus('success');
-            setSaveStatusMessage('IP successfully blocked!');
+            setSaveStatusMessage('IP muvaffaqiyatli bloklandi!');
             setTimeout(() => setSaveStatus(''), 3000);
           }
         } catch (err) {
           setSaveStatus('error');
-          setErrorMessage('Failed to block IP');
+          setErrorMessage('IPni bloklash muvaffaqiyatsiz tugadi');
           console.error('Block error:', err);
         }
       };
@@ -351,7 +351,7 @@
       };
 
       const handleClearLogs = async () => {
-        if (!window.confirm('Are you sure you want to delete ALL logs? This cannot be undone.')) return;
+        if (!window.confirm('Siz rostdan ham BARCHA loglarni oʻchirmoqchimisiz? Bu amalni qaytarib boʻlmaydi!')) return;
 
         try {
           const response = await fetch('http://185.47.174.65:3000/api/logs', {
@@ -362,15 +362,15 @@
           if (response.ok) {
             setLogs([]);
             setSaveStatus('success');
-            setSaveStatusMessage('All logs cleared successfully!');
+            setSaveStatusMessage('Barcha loglar muvaffaqiyatli tozalandi!');
             setTimeout(() => setSaveStatus(''), 3000);
           } else {
             throw new Error('Failed to clear logs');
           }
         } catch (err) {
           setSaveStatus('error');
-          setErrorMessage('Failed to clear logs');
-          console.error('Clear logs error:', err);
+          setErrorMessage('Tozalash muvaffaqiyatsiz');
+          console.error('Loglarni tozalashda xato:', err);
         }
       };
 
@@ -378,7 +378,7 @@
       const sqlXssCount = logs.filter(l => ['SQL Injection', 'XSS'].includes(l.threat_type)).length;
       const dosCount = logs.filter(l => l.threat_type === 'DoS/DDoS').length;
 
-      // График активности (последние 7 дней) — ИСПРАВЛЕН
+      // Faollik grafigi (soʻnggi 7 kun) 
       const last7Days = Array.from({ length: 7 }, (_, i) => {
         const d = new Date();
         d.setDate(d.getDate() - (6 - i));
@@ -402,15 +402,15 @@
             <h1 className="text-2xl font-bold mb-6">WH ADMIN</h1>
             <nav>
               {[
-                { id: 'dashboard', name: 'Dashboard' },
-		{ id: 'ai-models', name: 'AI models' },
-                { id: 'sql-xss-slowloris', name: 'SQL/XSS/Slowloris Protection' },
-                { id: 'dos-ddos', name: 'DoS/DDoS Protection' },
-                { id: 'spam', name: 'Spam Protection' },
-                { id: 'proxy', name: 'Proxy Protection' },
-                { id: 'bots', name: 'Bot Protection' },
-                { id: 'logs', name: 'Threat Logs' },
-                { id: 'blacklist', name: 'Blacklist' },
+                { id: 'dashboard', name: 'Boshqaruv paneli' },
+		{ id: 'ai-models', name: 'AI modellar' },
+                { id: 'sql-xss-slowloris', name: 'SQL/XSS/Slowloris himoyasi' },
+                { id: 'dos-ddos', name: 'DoS/DDoS himoyasi' },
+                { id: 'spam', name: 'Spam himoyasi' },
+                { id: 'proxy', name: 'Proxy himoyasi' },
+                { id: 'bots', name: 'Bot himoyasi' },
+                { id: 'logs', name: 'Taxdid loglari' },
+                { id: 'blacklist', name: 'Qora roʻyxat' },
               ].map(module => (
                 <button
                   key={module.id}
@@ -427,51 +427,51 @@
           <div className="flex-1 p-6 overflow-auto">
             {activeModule === 'dashboard' && (
               <div>
-                <h2 className="text-3xl font-bold mb-4">Dashboard</h2>
-                <p className="text-gray-600 mb-6">Overview of system status and recent threats.</p>
+                <h2 className="text-3xl font-bold mb-4">Boshqaruv paneli</h2>
+                <p className="text-gray-600 mb-6">Tizim holati va soʻnggi xavflar haqida umumiy ma'lumot.</p>
 
-                {/* Статистика */}
+                {/* Statistika */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                   <div className="bg-white p-4 rounded shadow">
-                    <h3 className="font-bold text-gray-700">Total Threats Blocked</h3>
+                    <h3 className="font-bold text-gray-700">Jami bloklangan xavflar</h3>
                     <p className="text-3xl font-bold text-red-600">{logs.length}</p>
                   </div>
                   <div className="bg-white p-4 rounded shadow">
-                    <h3 className="font-bold text-gray-700">Active Blacklist Entries</h3>
+                    <h3 className="font-bold text-gray-700">Faol qora roʻyxat yozuvlari</h3>
                     <p className="text-3xl font-bold text-blue-600">{blacklist.length}</p>
                   </div>
                   <div className="bg-white p-4 rounded shadow">
-                    <h3 className="font-bold text-gray-700">SQL/XSS Attacks</h3>
+                    <h3 className="font-bold text-gray-700">SQL/XSS hujumlari</h3>
                     <p className="text-3xl font-bold text-yellow-600">{sqlXssCount}</p>
                   </div>
                   <div className="bg-white p-4 rounded shadow">
-                    <h3 className="font-bold text-gray-700">DoS/DDoS Attempts</h3>
+                    <h3 className="font-bold text-gray-700">DoS/DDoS hujumlari</h3>
                     <p className="text-3xl font-bold text-orange-600">{dosCount}</p>
                   </div>
                 </div>
 
-                {/* Статус сервисов */}
+                {/* Serverlar statusi */}
                 <div className="bg-white p-4 rounded shadow mb-6">
-                  <h3 className="font-bold mb-3">System Status</h3>
+                  <h3 className="font-bold mb-3">Tizim holati</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="flex items-center">
                       <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                      <span>PostgreSQL: Connected</span>
+                      <span>PostgreSQL: Ulangan</span>
                     </div>
                     <div className="flex items-center">
                       <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                      <span>Nodemailer: Ready</span>
+                      <span>Nodemailer: Tayyor</span>
                     </div>
                     <div className="flex items-center">
                       <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                      <span>Protection: Active</span>
+                      <span>Himoya: Faol</span>
                     </div>
                   </div>
                 </div>
 
-                {/* График активности */}
+                {/* Faollik grafigi */}
                 <div className="bg-white p-4 rounded shadow mb-6">
-                  <h3 className="font-bold mb-3">Threat Activity (Last 7 Days)</h3>
+                  <h3 className="font-bold mb-3">Xavf faolligi (so‘nggi 7 kun)</h3>
                   <div className="h-40 flex items-end justify-between space-x-1 text-xs">
                     {last7Days.map((date, i) => {
                       const dateStr = date.toISOString().split('T')[0];
@@ -498,9 +498,9 @@
                   </div>
                 </div>
 
-                {/* Последние угрозы */}
+                {/* So‘nggi xavflar */}
                 <div className="bg-white p-4 rounded shadow">
-                  <h3 className="font-bold mb-3">Recent Threats</h3>
+                  <h3 className="font-bold mb-3">So‘nggi xavflar</h3>
                   {logs.length > 0 ? (
                     <table className="w-full border-collapse text-sm">
                       <thead>
@@ -540,28 +540,28 @@
 
 	{activeModule === 'ai-models' && (
               <div>
-                <h2 className="text-3xl font-bold mb-4">AI models</h2>
+                <h2 className="text-3xl font-bold mb-4">AI modellar</h2>
                 <div className="bg-white p-4 rounded shadow">
-                  <h3 className="font-bold mb-2">Configuration</h3>
+                  <h3 className="font-bold mb-2">Konfiguratsiya</h3>
                   <div className="space-y-2">
                     <label className="flex items-center">
                       <input type="checkbox" defaultChecked className="mr-2 h-4 w-4" />
-                      <span>Enable PNHAD</span>
+                      <span>PNHADni yoqish</span>
                     </label>
                     <label className="flex items-center">
                       <input type="checkbox" defaultChecked className="mr-2 h-4 w-4" />
-                      <span>Enable WH-XGBoost</span>
+                      <span>WH-XGBoost</span>
                     </label>
                     <label className="flex items-center">
                       <input type="checkbox" defaultChecked className="mr-2 h-4 w-4" />
-                      <span>Enable WH-CRNN_LSTM</span>
+                      <span>WH-CRNN_LSTMni yoqish</span>
                     </label>
                     <label className="flex items-center">
                       <input type="checkbox" defaultChecked className="mr-2 h-4 w-4" />
-                      <span>Enable HAEDFS</span>
+                      <span>HAEDFSni yoqish</span>
                     </label>
                     <div className="mt-4">
-                      <label className="block mb-2 font-medium">Email for Notifications</label>
+                      <label className="block mb-2 font-medium">Xabar uchun Email</label>
                       <input 
                         type="email" 
                         className="border p-2 w-full rounded" 
@@ -579,7 +579,7 @@
 
             {activeModule === 'sql-xss-slowloris' && (
               <div>
-                <h2 className="text-3xl font-bold mb-4">SQL/XSS/Slowloris Protection</h2>
+                <h2 className="text-3xl font-bold mb-4">SQL/XSS/Slowloris himoyasi</h2>
                 <div className="bg-white p-4 rounded shadow">
                   {saveStatus === 'success' && (
                     <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">
@@ -588,7 +588,7 @@
                   )}
                   {saveStatus === 'error' && (
                     <div className="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
-                      Failed to save settings. {errorMessage}
+                      Sozlamalarni saqlab bo‘lmadi. {errorMessage}
                     </div>
                   )}
 
@@ -600,7 +600,7 @@
                         onChange={(e) => setSqlSettings({ ...sqlSettings, sqlProtection: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Enable SQL Injection Protection</span>
+                      <span>SQL In'eksiya himoyani yoqish</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -609,7 +609,7 @@
                         onChange={(e) => setSqlSettings({ ...sqlSettings, xssProtection: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Enable XSS Protection</span>
+                      <span>XSS himoyani yoqish</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -618,7 +618,7 @@
                         onChange={(e) => setSqlSettings({ ...sqlSettings, slowlorisProtection: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Enable Slowloris Protection</span>
+                      <span>Slowloris himoyani yoqish</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -627,7 +627,7 @@
                         onChange={(e) => setSqlSettings({ ...sqlSettings, clickjackingProtection: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Enable Clickjacking Protection</span>
+                      <span>Clickjacking himoyani yoqish</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -636,7 +636,7 @@
                         onChange={(e) => setSqlSettings({ ...sqlSettings, hidePhpInfo: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Hide PHP Information</span>
+                      <span>PHP ma’lumotlarini yashirish</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -645,7 +645,7 @@
                         onChange={(e) => setSqlSettings({ ...sqlSettings, filterParams: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Filter Incoming Parameters</span>
+                      <span>Kiruvchi parametrlarni filtrlash</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -654,7 +654,7 @@
                         onChange={(e) => setSqlSettings({ ...sqlSettings, mimeMismatchProtection: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Prevent MIME-Type Mismatch Attacks</span>
+                      <span>MIME turi mos kelmaslik hujumlarini oldini olish</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -663,10 +663,10 @@
                         onChange={(e) => setSqlSettings({ ...sqlSettings, sqlAutoBlacklist: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Auto-Blacklist IPs</span>
+                      <span>IPlarni avtomatik qora ro‘yxatga qo‘shish</span>
                     </label>
                     <div className="mt-4">
-                      <label className="block mb-2 font-medium">Email for Notifications</label>
+                      <label className="block mb-2 font-medium">Xabar uchun Email</label>
                       <input 
                         type="email" 
                         value={sqlSettings.notificationEmail}
@@ -689,7 +689,7 @@
 
             {activeModule === 'dos-ddos' && (
               <div>
-                <h2 className="text-3xl font-bold mb-4">DoS/DDoS Protection</h2>
+                <h2 className="text-3xl font-bold mb-4">DoS/DDoS himoyasi</h2>
                 <div className="bg-white p-4 rounded shadow">
                   {saveStatus === 'success' && (
                     <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">
@@ -710,7 +710,7 @@
                         onChange={(e) => setDosSettings({ ...dosSettings, dosProtection: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Enable DoS/DDoS Protection</span>
+                      <span>DoS/DDoS himoyani yoqish</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -719,7 +719,7 @@
                         onChange={(e) => setDosSettings({ ...dosSettings, logThreats: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Log Threats</span>
+                      <span>Xavflarni jurnalga yozish</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -728,10 +728,10 @@
                         onChange={(e) => setDosSettings({ ...dosSettings, dosAutoBlacklist: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Auto-Blacklist IPs</span>
+                      <span>IPlarni avtomatik qora ro‘yxatga qo‘shish</span>
                     </label>
                     <div className="mt-4">
-                      <label className="block mb-2 font-medium">Email for Notifications</label>
+                      <label className="block mb-2 font-medium">Xabar uchun Email</label>
                       <input 
                         type="email" 
                         value={dosSettings.notificationEmail}
@@ -741,7 +741,7 @@
                       />
                     </div>
                     <div>
-                      <label className="block mb-2 font-medium">Custom Page URL for Attackers</label>
+                      <label className="block mb-2 font-medium">Hujumchilar uchun sahifa (URL)</label>
                       <input 
                         type="text" 
                         value={dosSettings.customBlockPage}
@@ -764,7 +764,7 @@
 
             {activeModule === 'spam' && (
               <div>
-                <h2 className="text-3xl font-bold mb-4">Spam Protection</h2>
+                <h2 className="text-3xl font-bold mb-4">Spam himoyasi</h2>
                 <div className="bg-white p-4 rounded shadow">
                   {saveStatus === 'success' && (
                     <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">
@@ -773,13 +773,13 @@
                   )}
                   {saveStatus === 'error' && (
                     <div className="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
-                      Failed to save settings. {errorMessage}
+                      Sozlamalarni saqlab bo‘lmadi. {errorMessage}
                     </div>
                   )}
 
                   <div className="space-y-3">
                     <div>
-                      <label className="block mb-2 font-medium">Spam Database URLs</label>
+                      <label className="block mb-2 font-medium">Spam DB URLlari</label>
                       {spamSettings.spamDatabaseUrls.map((url, index) => (
                         <div key={index} className="flex gap-2 mb-2">
                           <input
@@ -821,7 +821,7 @@
                         onChange={(e) => setSpamSettings({ ...spamSettings, spamProtection: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Enable Spam Protection</span>
+                      <span>Spamdan himoyani yoqish</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -830,7 +830,7 @@
                         onChange={(e) => setSpamSettings({ ...spamSettings, logThreats: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Log Threats</span>
+                      <span>Xavflarni jurnalga yozish</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -839,7 +839,7 @@
                         onChange={(e) => setSpamSettings({ ...spamSettings, spamAutoBlacklist: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Auto-Blacklist IPs</span>
+                      <span>IPlarni avtomatik qora ro‘yxatga qo‘shish</span>
                     </label>
                     <div className="mt-4">
                       <label className="block mb-2 font-medium">Email for Notifications</label>
@@ -852,7 +852,7 @@
                       />
                     </div>
                     <div>
-                      <label className="block mb-2 font-medium">Custom Page URL for Attackers</label>
+                      <label className="block mb-2 font-medium">Hujumchilar uchun sahifa (URL)</label>
                       <input 
                         type="text" 
                         value={spamSettings.customBlockPage}
@@ -875,7 +875,7 @@
 
             {activeModule === 'proxy' && (
               <div>
-                <h2 className="text-3xl font-bold mb-4">Proxy Protection</h2>
+                <h2 className="text-3xl font-bold mb-4">Proxy himoyasi</h2>
                 <div className="bg-white p-4 rounded shadow">
                   {saveStatus === 'success' && (
                     <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">
@@ -884,7 +884,7 @@
                   )}
                   {saveStatus === 'error' && (
                     <div className="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
-                      Failed to save settings. {errorMessage}
+                      Sozlamalarni saqlab bo‘lmadi. {errorMessage}
                     </div>
                   )}
 
@@ -896,7 +896,7 @@
                         onChange={(e) => setProxySettings({ ...proxySettings, proxyDetectionApi: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Enable Proxy Detection (API)</span>
+                      <span>Proksini aniqlashni yoqish (API)</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -905,7 +905,7 @@
                         onChange={(e) => setProxySettings({ ...proxySettings, proxyDetectionHeaders: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Enable Proxy Detection (HTTP Headers)</span>
+                      <span>Proksini aniqlashni yoqish (HTTP sarlavhalar)</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -914,7 +914,7 @@
                         onChange={(e) => setProxySettings({ ...proxySettings, proxyDetectionPortScan: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Enable Proxy Detection (Port Scanning)</span>
+                      <span>Proksini aniqlashni yoqish (port skanerlash)</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -923,7 +923,7 @@
                         onChange={(e) => setProxySettings({ ...proxySettings, logThreats: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Log Threats</span>
+                      <span>Xavflarni jurnalga yozish</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -932,10 +932,10 @@
                         onChange={(e) => setProxySettings({ ...proxySettings, proxyAutoBlacklist: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Auto-Blacklist IPs</span>
+                      <span>IPlarni avtomatik qora ro‘yxatga qo‘shish</span>
                     </label>
                     <div className="mt-4">
-                      <label className="block mb-2 font-medium">Email for Notifications</label>
+                      <label className="block mb-2 font-medium">Xabar uchun Email</label>
                       <input 
                         type="email" 
                         value={proxySettings.notificationEmail}
@@ -945,7 +945,7 @@
                       />
                     </div>
                     <div>
-                      <label className="block mb-2 font-medium">Custom Page URL for Attackers</label>
+                      <label className="block mb-2 font-medium">Hujumchilar uchun sahifa (URL)</label>
                       <input 
                         type="text" 
                         value={proxySettings.customBlockPage}
@@ -968,7 +968,7 @@
 
             {activeModule === 'bots' && (
               <div>
-                <h2 className="text-3xl font-bold mb-4">Bot Protection</h2>
+                <h2 className="text-3xl font-bold mb-4">Bot himoyasi</h2>
                 <div className="bg-white p-4 rounded shadow">
                   {saveStatus === 'success' && (
                     <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">
@@ -977,7 +977,7 @@
                   )}
                   {saveStatus === 'error' && (
                     <div className="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
-                      Failed to save settings. {errorMessage}
+                      Sozlamalarni saqlab bo‘lmadi. {errorMessage}
                     </div>
                   )}
 
@@ -989,7 +989,7 @@
                         onChange={(e) => setBotSettings({ ...botSettings, detectMaliciousBots: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Detect Malicious Bots</span>
+                      <span>Zararli botlarni aniqlash</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -998,7 +998,7 @@
                         onChange={(e) => setBotSettings({ ...botSettings, detectFakeBots: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Detect Fake Bots</span>
+                      <span>Soxta botlarni aniqlash</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -1007,7 +1007,7 @@
                         onChange={(e) => setBotSettings({ ...botSettings, detectAnonymousBots: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Detect Anonymous Bots</span>
+                      <span>Anonim botlarni aniqlash</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -1016,7 +1016,7 @@
                         onChange={(e) => setBotSettings({ ...botSettings, logThreats: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Log Threats</span>
+                      <span>Xavflarni jurnalga yozish</span>
                     </label>
                     <label className="flex items-center">
                       <input 
@@ -1025,10 +1025,10 @@
                         onChange={(e) => setBotSettings({ ...botSettings, botsAutoBlacklist: e.target.checked })}
                         className="mr-2 h-4 w-4"
                       />
-                      <span>Auto-Blacklist IPs</span>
+                      <span>IPlarni avtomatik qora ro‘yxatga qo‘shish</span>
                     </label>
                     <div className="mt-4">
-                      <label className="block mb-2 font-medium">Email for Notifications</label>
+                      <label className="block mb-2 font-medium">Xabar uchun Email</label>
                       <input 
                         type="email" 
                         value={botSettings.notificationEmail}
@@ -1038,7 +1038,7 @@
                       />
                     </div>
                     <div>
-                      <label className="block mb-2 font-medium">Custom Page URL for Attackers</label>
+                      <label className="block mb-2 font-medium">Hujumchilar uchun sahifa (URL)</label>
                       <input 
                         type="text" 
                         value={botSettings.customBlockPage}
@@ -1061,7 +1061,7 @@
 
             {activeModule === 'logs' && (
               <div>
-                <h2 className="text-3xl font-bold mb-4">Threat Logs</h2>
+                <h2 className="text-3xl font-bold mb-4">Taxdid loglari</h2>
 
                 {saveStatus === 'success' && (
                   <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">
@@ -1079,7 +1079,7 @@
                     <input 
                       type="text" 
                       className="border p-2 flex-1 min-w-48 rounded"
-                      placeholder="Search by IP, details..." 
+                      placeholder="IP bo‘yicha qidirish, tafsilotlar..." 
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -1089,16 +1089,16 @@
                       onChange={(e) => setThreatFilter(e.target.value)}
                       className="border p-2 rounded"
                     >
-                      <option value="">All Threat Types</option>
-                      <option value="SQL Injection">SQL Injection</option>
+                      <option value="">Xavf turlari</option>
+                      <option value="SQL Injection">SQL In'eksiya</option>
                       <option value="XSS">XSS</option>
                       <option value="Slowloris">Slowloris</option>
                       <option value="DoS/DDoS">DoS/DDoS</option>
                       <option value="Spam IP">Spam IP</option>
                       <option value="Proxy (Headers)">Proxy</option>
-                      <option value="Malicious Bot">Malicious Bot</option>
-                      <option value="Fake Bot">Fake Bot</option>
-                      <option value="Anonymous Bot">Anonymous Bot</option>
+                      <option value="Malicious Bot">Zararli bot</option>
+                      <option value="Fake Bot">Soxta bot</option>
+                      <option value="Anonymous Bot">Anonim bot</option>
                     </select>
 
                     <div className="flex gap-2 ml-auto">
@@ -1106,13 +1106,13 @@
                         onClick={handleExportCSV}
                         className="bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700 transition"
                       >
-                        Export CSV
+                        Eksport (CSV)
                       </button>
                       <button
                         onClick={handleClearLogs}
                         className="bg-red-600 text-white px-3 py-2 rounded text-sm hover:bg-red-700 transition"
                       >
-                        Clear All
+                        Tozalash
                       </button>
                     </div>
                   </div>
@@ -1122,18 +1122,18 @@
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="bg-gray-200">
-                        <th className="border border-gray-300 p-2 text-left">IP Address</th>
-                        <th className="border border-gray-300 p-2 text-left">Date/Time</th>
-                        <th className="border border-gray-300 p-2 text-left">Threat Type</th>
-                        <th className="border border-gray-300 p-2 text-left">Details</th>
-                        <th className="border border-gray-300 p-2 text-left">Actions Taken</th>
-                        <th className="border border-gray-300 p-2 text-left">Actions</th>
+                        <th className="border border-gray-300 p-2 text-left">IP manzil</th>
+                        <th className="border border-gray-300 p-2 text-left">Sana/Vaqt</th>
+                        <th className="border border-gray-300 p-2 text-left">Xavf turi</th>
+                        <th className="border border-gray-300 p-2 text-left">Tafsilotlar</th>
+                        <th className="border border-gray-300 p-2 text-left">Ko‘rilgan choralar</th>
+                        <th className="border border-gray-300 p-2 text-left">Choralar</th>
                       </tr>
                     </thead>
                     <tbody>
                       {currentLogs.length > 0 ? (
                         currentLogs.map(log => {
-                          const actions = log.actions_taken ? log.actions_taken.split(', ') : ['Request blocked'];
+                          const actions = log.actions_taken ? log.actions_taken.split(', ') : ['So‘rov bloklandi'];
                           return (
                             <tr key={log.id} className="hover:bg-gray-50">
                               <td className="border border-gray-300 p-2 font-mono">{log.ip}</td>
@@ -1157,17 +1157,17 @@
                               <td className="border border-gray-300 p-2">
                                 {actions.map((action, i) => (
                                   <div key={i} className="flex items-center text-sm mb-1">
-                                    {action === 'Request blocked' && (
+                                    {action === 'So‘rov bloklandi' && (
                                       <svg className="w-3 h-3 mr-1 text-red-500" fill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                                       </svg>
                                     )}
-                                    {action === 'IP auto-blacklisted' && (
+                                    {action === 'IP avtomatik bloklandi' && (
                                       <svg className="w-3 h-3 mr-1 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                       </svg>
                                     )}
-                                    {action === 'Email notification sent' && (
+                                    {action === 'Xabarnoma yuborildi' && (
                                       <svg className="w-3 h-3 mr-1 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
                                         <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
@@ -1191,7 +1191,7 @@
                       ) : (
                         <tr>
                           <td colSpan="6" className="border border-gray-300 p-4 text-center text-gray-500">
-                            No logs found matching your criteria.
+                            Mos loglar topilmadi.
                           </td>
                         </tr>
                       )}
@@ -1205,7 +1205,7 @@
                         disabled={currentPage === 1}
                         className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Previous
+                        Qaytish
                       </button>
                       <span>Page {currentPage} of {totalPages}</span>
                       <button
@@ -1213,7 +1213,7 @@
                         disabled={currentPage === totalPages}
                         className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Next
+                        Keyingi
                       </button>
                     </div>
                   )}
@@ -1223,7 +1223,7 @@
 
             {activeModule === 'blacklist' && (
               <div>
-                <h2 className="text-3xl font-bold mb-4">Blacklist</h2>
+                <h2 className="text-3xl font-bold mb-4">Qora ro‘yxat</h2>
                 <div className="bg-white p-4 rounded shadow">
                   {saveStatus === 'success' && (
                     <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">
@@ -1240,7 +1240,7 @@
                     <input 
                       type="text" 
                       className="border p-2 flex-1 min-w-48 rounded"
-                      placeholder="Add IP, Domain, or other entry"
+                      placeholder="IP, domen yoki boshqa yozuv qo‘shish"
                       value={newBlacklistEntry}
                       onChange={(e) => setNewBlacklistEntry(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleAddToBlacklist()}
@@ -1251,17 +1251,17 @@
                       onChange={(e) => setTempBlockDuration(e.target.value)}
                       className="border p-2 rounded"
                     >
-                      <option value="1h">Block for 1 hour</option>
-                      <option value="1d">Block for 1 day</option>
-                      <option value="1w">Block for 1 week</option>
-                      <option value="permanent">Permanent</option>
+                      <option value="1h">1 soat blok</option>
+                      <option value="1d">1 kun blok</option>
+                      <option value="1w">1 hafta blok</option>
+                      <option value="permanent">Doimiy</option>
                     </select>
 
                     <button 
                       onClick={handleAddToBlacklist}
                       className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
                     >
-                      Add
+                      Qo‘shish
                     </button>
                   </div>
 
@@ -1275,7 +1275,7 @@
                         id="import-file"
                       />
                       <label htmlFor="import-file" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer">
-                        Import from File
+                        Fayldan import
                       </label>
                     </label>
 
@@ -1283,7 +1283,7 @@
                       onClick={handleClearBlacklist}
                       className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
                     >
-                      Clear All
+                      Tozalash
                     </button>
                   </div>
 
@@ -1292,7 +1292,7 @@
                     <input 
                       type="text" 
                       className="border p-2 w-full rounded"
-                      placeholder="Search in blacklist (IP, domain, etc.)"
+                      placeholder="Qora ro‘yxatda qidirish (IP, domen va h.k.)"
                       value={searchTerm}
                       onChange={(e) => {
                         setSearchTerm(e.target.value);
@@ -1305,11 +1305,11 @@
                     <table className="w-full border-collapse">
                       <thead>
                         <tr className="bg-gray-200">
-                          <th className="border border-gray-300 p-2 text-left">Entry</th>
-                          <th className="border border-gray-300 p-2 text-left">Type</th>
-                          <th className="border border-gray-300 p-2 text-left">Expires</th>
-                          <th className="border border-gray-300 p-2 text-left">Added</th>
-                          <th className="border border-gray-300 p-2 text-left">Actions</th>
+                          <th className="border border-gray-300 p-2 text-left">Yozuv</th>
+                          <th className="border border-gray-300 p-2 text-left">Turi</th>
+                          <th className="border border-gray-300 p-2 text-left">Tugadi</th>
+                          <th className="border border-gray-300 p-2 text-left">Qo‘shildi</th>
+                          <th className="border border-gray-300 p-2 text-left">Choralar</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1345,14 +1345,14 @@
                         ) : (
                           <tr>
                             <td colSpan="5" className="border border-gray-300 p-4 text-center text-gray-500">
-                              No entries found.
+                              Yozuvlar topilmadi.
                             </td>
                           </tr>
                         )}
                       </tbody>
                     </table>
 
-                    {/* Пагинация */}
+                    {/* Sahifakash */}
                     {totalBlacklistPages > 1 && (
                       <div className="flex justify-between items-center mt-4">
                         <button
@@ -1360,7 +1360,7 @@
                           disabled={currentPage === 1}
                           className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Previous
+                          Qaytish
                         </button>
                         <span>Page {currentPage} of {totalBlacklistPages}</span>
                         <button
@@ -1368,7 +1368,7 @@
                           disabled={currentPage === totalBlacklistPages}
                           className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Next
+                          Keyingi
                         </button>
                       </div>
                     )}
