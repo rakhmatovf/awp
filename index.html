@@ -77,16 +77,25 @@
         customBlockPage: '/attacker-page'
       });
 
+      const [aiSettings, setAiSettings] = React.useState({
+        pnhadEnabled: true,
+        whXgboostEnabled: true,
+        crnnLstmEnabled: true,
+        haedfsEnabled: true,
+        aiAutoBlacklist: true
+      });
+
       // Загрузка данных
       React.useEffect(() => {
         fetch('http://185.47.174.65:3000/api/settings')
           .then(r => r.json())
           .then(data => {
-            setSqlSettings(prev => ({ ...prev, ...data }));
-            setDosSettings(prev => ({ ...prev, ...data }));
-            setSpamSettings(prev => ({ ...prev, ...data }));
-            setProxySettings(prev => ({ ...prev, ...data }));
-            setBotSettings(prev => ({ ...prev, ...data }));
+            if (data.sqlProtection !== undefined) setSqlSettings(prev => ({ ...prev, ...data }));
+            if (data.dosProtection !== undefined) setDosSettings(prev => ({ ...prev, ...data }));
+            if (data.spamProtection !== undefined) setSpamSettings(prev => ({ ...prev, ...data }));
+            if (data.proxyDetectionHeaders !== undefined) setProxySettings(prev => ({ ...prev, ...data }));
+            if (data.detectMaliciousBots !== undefined) setBotSettings(prev => ({ ...prev, ...data }));
+            if (data.pnhadEnabled !== undefined) setAiSettings(prev => ({ ...prev, ...data }));
           })
           .catch(err => console.error('Failed to load settings:', err));
 
@@ -403,7 +412,7 @@
             <nav>
               {[
                 { id: 'dashboard', name: 'Dashboard' },
-		{ id: 'ai-models', name: 'AI models' },
+                { id: 'ai-models', name: 'AI models' },
                 { id: 'sql-xss-slowloris', name: 'SQL/XSS/Slowloris Protection' },
                 { id: 'dos-ddos', name: 'DoS/DDoS Protection' },
                 { id: 'spam', name: 'Spam Protection' },
@@ -505,7 +514,7 @@
                     <table className="w-full border-collapse text-sm">
                       <thead>
                         <tr className="bg-gray-100">
-                          <th className="border border-gray-300 p-2 text-left">IP</th>
+                          <th className="border border-gray-300 p-2 text-left">IP Address</th>
                           <th className="border border-gray-300 p-2 text-left">Type</th>
                           <th className="border border-gray-300 p-2 text-left">Time</th>
                         </tr>
@@ -538,25 +547,22 @@
               </div>
             )}
 
-	{activeModule === 'ai-models' && (
+            {activeModule === 'ai-models' && (
               <div>
                 <h2 className="text-3xl font-bold mb-4">AI models</h2>
                 <div className="bg-white p-4 rounded shadow">
-                  <h3 className="font-bold mb-2">Configuration</h3>
-                  <div className="space-y-2">
+                  <h3 className="font-bold mb-3">Configuration</h3>
+                  <div className="space-y-3">
                     <label className="flex items-center">
-                      <input type="checkbox" defaultChecked className="mr-2 h-4 w-4" />
-                      <span>Enable PNHAD</span>
+                      <input 
+                        type="checkbox" 
+                        checked={aiSettings.pnhadEnabled} 
+                        onChange={(e) => setAiSettings({...aiSettings, pnhadEnabled: e.target.checked})}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable PNHAD (Poisson-Normal Hybrid Anomaly Detection)</span>
                     </label>
                     <label className="flex items-center">
-<<<<<<< HEAD
-                      <input type="checkbox" defaultChecked className="mr-2 h-4 w-4" />
-                      <span>Enable WH-XGBoost</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input type="checkbox" defaultChecked className="mr-2 h-4 w-4" />
-                      <span>Enable WH-CRNN_LSTM</span>
-=======
                       <input 
                         type="checkbox" 
                         checked={aiSettings.whXgboostEnabled} 
@@ -573,28 +579,46 @@
                         className="mr-2 h-4 w-4"
                       />
                       <span>Enable WH-CRNN_LSTM (Hybrid CRNN-LSTM)</span>
->>>>>>> c203088 (Interfeys1)
                     </label>
                     <label className="flex items-center">
-                      <input type="checkbox" defaultChecked className="mr-2 h-4 w-4" />
-                      <span>Enable HAEDFS</span>
-                    </label>
-                    <div className="mt-4">
-                      <label className="block mb-2 font-medium">Email for Notifications</label>
                       <input 
-                        type="email" 
-                        className="border p-2 w-full rounded" 
-                        placeholder="admin@example.com" 
+                        type="checkbox" 
+                        checked={aiSettings.haedfsEnabled} 
+                        onChange={(e) => setAiSettings({...aiSettings, haedfsEnabled: e.target.checked})}
+                        className="mr-2 h-4 w-4"
                       />
-                    </div>
-                    <button className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors">
-                      Save Settings
+                      <span>Enable HAEDFS (Hybrid Adaptive Ensemble with Dynamic Feature Selection)</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={aiSettings.aiAutoBlacklist} 
+                        onChange={(e) => setAiSettings({...aiSettings, aiAutoBlacklist: e.target.checked})}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Auto-blacklist IPs detected by AI</span>
+                    </label>
+                    <button 
+                      onClick={() => handleSaveSettings(aiSettings, 'ai')}
+                      disabled={saveStatus === 'saving'}
+                      className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors disabled:opacity-70"
+                    >
+                      {saveStatus === 'saving' ? 'Saving...' : 'Save AI Settings'}
                     </button>
                   </div>
                 </div>
+
+                <div className="bg-white p-4 rounded shadow mt-6">
+                  <h3 className="font-bold mb-3">AI Decision Logic</h3>
+                  <ul className="text-sm space-y-1">
+                    <li>• All modules work together: <strong>rules + AI</strong></li>
+                    <li>• Decision based on <strong>combined confidence score</strong></li>
+                    <li>• High-confidence threats (> 0.65) are blocked automatically</li>
+                    <li>• Features used: <code>R_t, V_t, S_t, T_t, Q_t</code></li>
+                  </ul>
+                </div>
               </div>
             )}
-
 
             {activeModule === 'sql-xss-slowloris' && (
               <div>

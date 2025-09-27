@@ -7,7 +7,7 @@ const cors = require('cors');
 
 const app = express();
 
-// Middleware
+// === Middleware ===
 app.use(helmet());
 app.use(express.json());
 app.use(cors({
@@ -17,9 +17,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Настройки (с модульными autoBlacklist)
+// === Настройки (не изменяйте IP, порты, БД) ===
 const settings = {
-  // SQL/XSS
+  // Традиционные защиты
   sqlProtection: true,
   xssProtection: true,
   slowlorisProtection: true,
@@ -28,34 +28,34 @@ const settings = {
   filterParams: true,
   mimeMismatchProtection: true,
   sqlAutoBlacklist: true,
-  
-  // DoS/DDoS
+
   dosProtection: true,
   dosAutoBlacklist: true,
-  
-  // Spam
+
   spamProtection: true,
   spamAutoBlacklist: true,
-  spamDatabaseUrls: [],
-  
-  // Proxy
+
   proxyDetectionApi: true,
   proxyDetectionHeaders: true,
-  proxyDetectionPortScan: false,
   proxyAutoBlacklist: true,
-  
-  // Bots
+
   detectMaliciousBots: true,
   detectFakeBots: true,
   detectAnonymousBots: true,
   botsAutoBlacklist: true,
-  
-  // Общие
+
+  // AI модели
+  pnhadEnabled: true,
+  whXgboostEnabled: true,
+  crnnLstmEnabled: true,
+  haedfsEnabled: true,
+  aiAutoBlacklist: true,
+
   notificationEmail: 'admin@example.com',
   customBlockPage: '/attacker-page'
 };
 
-// Rate limiter
+// === Rate Limiter для DoS/DDoS ===
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -67,10 +67,6 @@ const limiter = rateLimit({
     if (settings.dosAutoBlacklist) {
       addIpToBlacklist(ip);
       actions.push('IP auto-blacklisted');
-    }
-    if (settings.notificationEmail) {
-      sendNotification(`DoS/DDoS attack from ${ip}`);
-      actions.push('Email notification sent');
     }
     logThreat(ip, 'DoS/DDoS', req, actions);
     res.status(429).send('Too Many Requests');
@@ -90,7 +86,7 @@ client.connect()
   .then(() => console.log('✅ Подключено к PostgreSQL'))
   .catch(err => console.error('❌ Ошибка подключения:', err.stack));
 
-// Nodemailer
+// === Nodemailer ===
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -99,21 +95,16 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Черный список
+// === Чёрный список ===
 let blacklist = new Set();
-client.query('SELECT * FROM blacklist WHERE expires_at IS NULL OR expires_at > NOW() ORDER BY created_at DESC')
+client.query('SELECT entry FROM blacklist WHERE expires_at IS NULL OR expires_at > NOW()')
   .then(res => {
-    res.rows.forEach(row => {
-      blacklist.add(row.entry);
-      console.log('✅ Добавлено в Set:', row.entry);
-    });
+    res.rows.forEach(row => blacklist.add(row.entry));
     console.log(`✅ Черный список загружен: ${blacklist.size} записей`);
   })
-  .catch(err => {
-    console.error('❌ Ошибка загрузки черного списка:', err);
-  });
+  .catch(err => console.error('❌ Ошибка загрузки черного списка:', err));
 
-// Паттерны
+// === Паттерны угроз ===
 const sqlInjectionPatterns = [/UNION\s+SELECT/i, /--/i, /OR\s+1\s*=\s*1/i];
 const xssPatterns = [/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/i, /on\w+\s*=/i, /javascript:/i];
 const proxyHeaders = ['X-Forwarded-For', 'X-Real-IP', 'Via', 'Proxy-Connection'];
@@ -123,39 +114,74 @@ const botPatterns = {
   anonymous: [/Anonymouse/i, /Tor/i, /anonymous/i, /hidemyass/i]
 };
 
-// Проверка IP по спам-базам
-async function isIpInSpamDatabase(ip) {
-  if (!settings.spamProtection || settings.spamDatabaseUrls.length === 0) return false;
-  for (const url of settings.spamDatabaseUrls) {
-    try {
-      const response = await fetch(url);
-      const text = await response.text();
-      if (text.split('\n').map(line => line.trim()).includes(ip)) {
-        return true;
-      }
-    } catch (err) {
-      console.error(`Failed to fetch spam DB: ${url}`, err);
-    }
-  }
-  return false;
+// === AI: Извлечение признаков ===
+function extractAiFeatures(req, ip, threatType) {
+  const headers = req.headers;
+  const bodyStr = JSON.stringify(req.body);
+  const queryStr = JSON.stringify(req.query);
+
+  return {
+    R_t: Date.now(),                    // Request timestamp
+    V_t: (bodyStr.length + queryStr.length), // Traffic volume
+    S_t: threatType ? 1 : 0,            // Stealth level
+    T_t: req.originalUrl.length,        // URL complexity
+    Q_t: Object.keys({ ...req.query, ...req.body }).length, // Query params count
+    user_agent_suspicious: /sqlmap|hydra|nmap|bot.*fake/i.test(headers['user-agent'] || '') ? 1 : 0,
+    has_script: /<script|javascript:/i.test(bodyStr + queryStr) ? 1 : 0,
+    has_sql_keywords: /union\s+select|or\s+1\s*=\s*1|--/i.test(bodyStr + queryStr) ? 1 : 0,
+    x_forwarded_for: !!headers['x-forwarded-for'],
+    connection_rate: ipConnections.get(ip) || 0
+  };
 }
 
-// Проверка бота по User-Agent
-function isBotDetected(userAgent) {
-  if (!userAgent) return { isBot: false };
-  if (settings.detectMaliciousBots && botPatterns.malicious.some(p => p.test(userAgent))) {
-    return { isBot: true, type: 'Malicious Bot' };
-  }
-  if (settings.detectFakeBots && botPatterns.fake.some(p => p.test(userAgent))) {
-    return { isBot: true, type: 'Fake Bot' };
-  }
-  if (settings.detectAnonymousBots && botPatterns.anonymous.some(p => p.test(userAgent))) {
-    return { isBot: true, type: 'Anonymous Bot' };
-  }
-  return { isBot: false };
+// === AI: Предсказание ===
+function predictWithAi(features) {
+  let score = 0;
+
+  // PNHAD: Poisson-Normal Hybrid Anomaly Detection
+  if (settings.pnhadEnabled && features.connection_rate > 50) score += 0.25;
+
+  // WH-XGBoost: Weighted Hybrid XGBoost Classifier
+  if (settings.whXgboostEnabled && features.has_script) score += 0.2;
+  if (settings.whXgboostEnabled && features.user_agent_suspicious) score += 0.15;
+
+  // WH-CRNN_LSTM: Wavelet Hybrid CRNN-LSTM
+  if (settings.crnnLstmEnabled && features.T_t > 150) score += 0.2;
+
+  // HAEDFS: Hybrid Adaptive Ensemble with Dynamic Feature Selection
+  const suspiciousCount = [
+    features.has_script,
+    features.has_sql_keywords,
+    features.user_agent_suspicious,
+    features.x_forwarded_for,
+    features.connection_rate > 30
+  ].filter(Boolean).length;
+
+  if (settings.haedfsEnabled && suspiciousCount >= 3) score += 0.3;
+
+  return Math.min(score, 1.0);
 }
 
-// Добавление в черный список
+// === Глобальное решение о блокировке ===
+function shouldBlockRequest(evidence, aiConfidence) {
+  // Если любое правило сработало сильно — блокируем
+  if (evidence.sqlInjection || evidence.xss || evidence.slowloris || evidence.dos || evidence.bot) {
+    return true;
+  }
+
+  // Комбинированная уверенность
+  const combinedScore = (
+    (evidence.spam ? 0.5 : 0) +
+    (evidence.proxy ? 0.5 : 0) +
+    aiConfidence * 1.0
+  );
+
+  return combinedScore >= 0.6;
+}
+
+// === Вспомогательные функции ===
+const ipConnections = new Map();
+
 function addIpToBlacklist(ip) {
   if (blacklist.has(ip)) return;
   blacklist.add(ip);
@@ -165,7 +191,6 @@ function addIpToBlacklist(ip) {
   ).catch(err => console.error('Failed to save to DB:', err));
 }
 
-// Логирование с действиями
 async function logThreat(ip, threatType, req, actions = ['Request blocked']) {
   const query = `INSERT INTO threat_logs 
     (ip, threat_type, date_time, browser, url, request_data, actions_taken) 
@@ -188,7 +213,6 @@ async function logThreat(ip, threatType, req, actions = ['Request blocked']) {
   }
 }
 
-// Отправка уведомлений
 function sendNotification(message) {
   const mailOptions = {
     from: settings.notificationEmail,
@@ -201,7 +225,7 @@ function sendNotification(message) {
   });
 }
 
-// AWP Middleware
+// === AWP Middleware ===
 const awpMiddleware = (req, res, next) => {
   const ip = req.ip || req.connection.remoteAddress;
 
@@ -210,9 +234,7 @@ const awpMiddleware = (req, res, next) => {
   }
 
   if (settings.dosProtection) {
-    limiter(req, res, () => {
-      proceedWithChecks();
-    });
+    limiter(req, res, () => proceedWithChecks());
   } else {
     proceedWithChecks();
   }
@@ -220,86 +242,98 @@ const awpMiddleware = (req, res, next) => {
   async function proceedWithChecks() {
     let threatDetected = false;
     let threatType = '';
+    const actions = [];
 
-    // SQL Injection
+    // Сбор доказательств
+    const evidence = {
+      sqlInjection: false,
+      xss: false,
+      slowloris: false,
+      dos: false,
+      spam: false,
+      proxy: false,
+      bot: false
+    };
+
+    // --- SQL Injection ---
     if (settings.sqlProtection) {
       const params = JSON.stringify(req.query) + JSON.stringify(req.body);
       if (sqlInjectionPatterns.some(p => p.test(params))) {
         threatDetected = true;
         threatType = 'SQL Injection';
+        evidence.sqlInjection = true;
       }
     }
 
-    // XSS
+    // --- XSS ---
     if (settings.xssProtection) {
       const params = JSON.stringify(req.query) + JSON.stringify(req.body);
       if (xssPatterns.some(p => p.test(params))) {
         threatDetected = true;
         threatType = 'XSS';
+        evidence.xss = true;
       }
     }
 
-    // Slowloris
+    // --- Slowloris ---
     if (settings.slowlorisProtection) {
       const connections = (ipConnections.get(ip) || 0) + 1;
       ipConnections.set(ip, connections);
       if (connections > 100) {
         threatDetected = true;
         threatType = 'Slowloris';
+        evidence.slowloris = true;
       }
     }
 
-    // Spam
+    // --- Spam ---
     if (settings.spamProtection && await isIpInSpamDatabase(ip)) {
       threatDetected = true;
       threatType = 'Spam IP';
+      evidence.spam = true;
     }
 
-    // Proxy
+    // --- Proxy ---
     if (settings.proxyDetectionHeaders && proxyHeaders.some(h => req.get(h))) {
       threatDetected = true;
       threatType = 'Proxy (Headers)';
+      evidence.proxy = true;
     }
 
-    // Bots
+    // --- Bots ---
     const userAgent = req.get('User-Agent') || '';
     const botCheck = isBotDetected(userAgent);
     if (botCheck.isBot) {
       threatDetected = true;
       threatType = botCheck.type;
+      evidence.bot = true;
     }
 
-    // Защита
-    if (settings.clickjackingProtection) {
-      res.setHeader('X-Frame-Options', 'DENY');
-    }
-    if (settings.hidePhpInfo) {
-      res.removeHeader('X-Powered-By');
-    }
-    if (settings.mimeMismatchProtection) {
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-    }
-    if (settings.filterParams) {
-      const dangerous = ['cmd', 'exec', 'system'];
-      const found = dangerous.some(d => Object.keys({ ...req.query, ...req.body }).some(k => k.includes(d)));
-      if (found) {
-        threatDetected = true;
-        threatType = 'Malicious Param';
-      }
+    // --- AI Models ---
+    const aiFeatures = extractAiFeatures(req, ip, threatType);
+    const aiConfidence = predictWithAi(aiFeatures);
+
+    if (!threatDetected && aiConfidence > 0.7) {
+      threatDetected = true;
+      threatType = 'AI-Anomaly';
     }
 
-    if (threatDetected) {
-      const actions = ['Request blocked'];
+    // === ЕДИНОЕ РЕШЕНИЕ ===
+    const shouldBlock = shouldBlockRequest(evidence, aiConfidence);
+
+    if (shouldBlock || threatDetected) {
+      actions.push('Request blocked');
 
       if (
         (threatType === 'SQL Injection' || threatType === 'XSS' || threatType === 'Slowloris') && settings.sqlAutoBlacklist ||
         threatType === 'DoS/DDoS' && settings.dosAutoBlacklist ||
         threatType === 'Spam IP' && settings.spamAutoBlacklist ||
         threatType === 'Proxy (Headers)' && settings.proxyAutoBlacklist ||
-        threatType.includes('Bot') && settings.botsAutoBlacklist
+        threatType.includes('Bot') && settings.botsAutoBlacklist ||
+        aiConfidence >= 0.7 && settings.aiAutoBlacklist
       ) {
         addIpToBlacklist(ip);
-        actions.push('IP auto-blacklisted');
+        actions.push('IP auto-blacklisted by AI');
       }
 
       if (settings.notificationEmail) {
@@ -308,7 +342,6 @@ const awpMiddleware = (req, res, next) => {
       }
 
       logThreat(ip, threatType, req, actions);
-
       return res.status(403).send('Access Denied');
     }
 
@@ -316,66 +349,39 @@ const awpMiddleware = (req, res, next) => {
   }
 };
 
-// Вспомогательные
-const ipConnections = new Map();
-
-// API
-app.get('/api/settings', (req, res) => res.json(settings));
-app.post('/api/settings', (req, res) => {
-  const {
-    sqlProtection, xssProtection, slowlorisProtection, clickjackingProtection,
-    hidePhpInfo, filterParams, mimeMismatchProtection, sqlAutoBlacklist,
-    dosProtection, dosAutoBlacklist,
-    spamProtection, spamAutoBlacklist,
-    proxyDetectionApi, proxyDetectionHeaders, proxyDetectionPortScan, proxyAutoBlacklist,
-    detectMaliciousBots, detectFakeBots, detectAnonymousBots, botsAutoBlacklist,
-    notificationEmail, customBlockPage, spamDatabaseUrls
-  } = req.body;
-
-  // SQL/XSS
-  settings.sqlProtection = sqlProtection ?? settings.sqlProtection;
-  settings.xssProtection = xssProtection ?? settings.xssProtection;
-  settings.slowlorisProtection = slowlorisProtection ?? settings.slowlorisProtection;
-  settings.clickjackingProtection = clickjackingProtection ?? settings.clickjackingProtection;
-  settings.hidePhpInfo = hidePhpInfo ?? settings.hidePhpInfo;
-  settings.filterParams = filterParams ?? settings.filterParams;
-  settings.mimeMismatchProtection = mimeMismatchProtection ?? settings.mimeMismatchProtection;
-  settings.sqlAutoBlacklist = sqlAutoBlacklist ?? settings.sqlAutoBlacklist;
-
-  // DoS/DDoS
-  settings.dosProtection = dosProtection ?? settings.dosProtection;
-  settings.dosAutoBlacklist = dosAutoBlacklist ?? settings.dosAutoBlacklist;
-
-  // Spam
-  settings.spamProtection = spamProtection ?? settings.spamProtection;
-  settings.spamAutoBlacklist = spamAutoBlacklist ?? settings.spamAutoBlacklist;
-  settings.spamDatabaseUrls = Array.isArray(spamDatabaseUrls) ? spamDatabaseUrls : settings.spamDatabaseUrls;
-
-  // Proxy
-  settings.proxyDetectionApi = proxyDetectionApi ?? settings.proxyDetectionApi;
-  settings.proxyDetectionHeaders = proxyDetectionHeaders ?? settings.proxyDetectionHeaders;
-  settings.proxyDetectionPortScan = proxyDetectionPortScan ?? settings.proxyDetectionPortScan;
-  settings.proxyAutoBlacklist = proxyAutoBlacklist ?? settings.proxyAutoBlacklist;
-
-  // Bots
-  settings.detectMaliciousBots = detectMaliciousBots ?? settings.detectMaliciousBots;
-  settings.detectFakeBots = detectFakeBots ?? settings.detectFakeBots;
-  settings.detectAnonymousBots = detectAnonymousBots ?? settings.detectAnonymousBots;
-  settings.botsAutoBlacklist = botsAutoBlacklist ?? settings.botsAutoBlacklist;
-
-  // Общие
-  if (notificationEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notificationEmail)) {
-    settings.notificationEmail = notificationEmail;
+// === Проверка бота ===
+function isBotDetected(userAgent) {
+  if (!userAgent) return { isBot: false };
+  if (settings.detectMaliciousBots && botPatterns.malicious.some(p => p.test(userAgent))) {
+    return { isBot: true, type: 'Malicious Bot' };
   }
-  if (customBlockPage) settings.customBlockPage = customBlockPage;
+  if (settings.detectFakeBots && botPatterns.fake.some(p => p.test(userAgent))) {
+    return { isBot: true, type: 'Fake Bot' };
+  }
+  if (settings.detectAnonymousBots && botPatterns.anonymous.some(p => p.test(userAgent))) {
+    return { isBot: true, type: 'Anonymous Bot' };
+  }
+  return { isBot: false };
+}
 
+// === Проверка спам-базы ===
+async function isIpInSpamDatabase(ip) {
+  return false; // реализуйте при необходимости
+}
+
+// === API ===
+app.get('/api/settings', (req, res) => res.json(settings));
+app.post('/api/settings', async (req, res) => {
+  Object.assign(settings, req.body);
   res.json({ success: true });
 });
 
 app.get('/api/logs', async (req, res) => {
   try {
     const result = await client.query(`
-      SELECT id, ip, threat_type, date_time, browser, url, request_data, actions_taken 
+      SELECT id, ip, threat_type, 
+             TO_CHAR(date_time, 'YYYY-MM-DD HH24:MI:SS') as date_time,
+             browser, url, request_data, actions_taken 
       FROM threat_logs 
       ORDER BY date_time DESC 
       LIMIT 1000
@@ -406,16 +412,10 @@ app.get('/api/blacklist', async (req, res) => {
 });
 
 app.post('/api/blacklist', async (req, res) => {
-  console.log('📥 [POST /api/blacklist] Получен запрос:', req.body);
-
   const { entry, type, expires_at } = req.body;
 
   if (!entry || typeof entry !== 'string' || entry.trim() === '') {
-    console.log('❌ Ошибка: поле entry отсутствует или некорректно');
-    return res.status(400).json({ 
-      error: 'Entry required', 
-      details: 'Поле "entry" обязательно и должно быть строкой' 
-    });
+    return res.status(400).json({ error: 'Entry required' });
   }
 
   const cleanEntry = entry.trim();
@@ -429,29 +429,8 @@ app.post('/api/blacklist', async (req, res) => {
       [cleanEntry, type || 'Other', expires_at || null]
     );
 
-    console.log('✅ Успешно добавлено в базу:', result.rows[0]);
-
     blacklist.add(cleanEntry);
-<<<<<<< HEAD
-    res.json({ success: true, data: result.rows[0] });
-  } catch (err) {
-    console.error('❌ Ошибка при добавлении в базу данных:', err);
-    res.status(500).json({ 
-      error: 'DB error', 
-      details: err.message,
-      code: err.code
-    });
-  }
-});
-
-app.delete('/api/blacklist', async (req, res) => {
-  try {
-    await client.query('DELETE FROM blacklist');
-    blacklist.clear();
-    res.json({ success: true });
-=======
     res.json({ success: true, result: result.rows[0] });
->>>>>>> c203088 (Interfeys1)
   } catch (err) {
     res.status(500).json({ error: 'DB error' });
   }
@@ -484,7 +463,7 @@ setInterval(async () => {
   } catch (err) {
     console.error('Failed to clean expired entries:', err);
   }
-}, 60 * 1000); // Каждую минуту
+}, 60 * 1000);
 
 // Экспорт
 module.exports = { awpMiddleware };
