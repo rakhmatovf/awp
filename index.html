@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WH - Web Himoya</title>
+  <title>WH - Web Himoya 1</title>
   <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.15/babel.min.js"></script>
@@ -549,12 +549,31 @@
                       <span>Enable PNHAD</span>
                     </label>
                     <label className="flex items-center">
+<<<<<<< HEAD
                       <input type="checkbox" defaultChecked className="mr-2 h-4 w-4" />
                       <span>Enable WH-XGBoost</span>
                     </label>
                     <label className="flex items-center">
                       <input type="checkbox" defaultChecked className="mr-2 h-4 w-4" />
                       <span>Enable WH-CRNN_LSTM</span>
+=======
+                      <input 
+                        type="checkbox" 
+                        checked={aiSettings.whXgboostEnabled} 
+                        onChange={(e) => setAiSettings({...aiSettings, whXgboostEnabled: e.target.checked})}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable WH-XGBoost (XGBoost Classifier)</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={aiSettings.crnnLstmEnabled} 
+                        onChange={(e) => setAiSettings({...aiSettings, crnnLstmEnabled: e.target.checked})}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable WH-CRNN_LSTM (Hybrid CRNN-LSTM)</span>
+>>>>>>> c203088 (Interfeys1)
                     </label>
                     <label className="flex items-center">
                       <input type="checkbox" defaultChecked className="mr-2 h-4 w-4" />

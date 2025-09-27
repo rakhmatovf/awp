@@ -432,6 +432,7 @@ app.post('/api/blacklist', async (req, res) => {
     console.log('✅ Успешно добавлено в базу:', result.rows[0]);
 
     blacklist.add(cleanEntry);
+<<<<<<< HEAD
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
     console.error('❌ Ошибка при добавлении в базу данных:', err);
@@ -448,6 +449,9 @@ app.delete('/api/blacklist', async (req, res) => {
     await client.query('DELETE FROM blacklist');
     blacklist.clear();
     res.json({ success: true });
+=======
+    res.json({ success: true, result: result.rows[0] });
+>>>>>>> c203088 (Interfeys1)
   } catch (err) {
     res.status(500).json({ error: 'DB error' });
   }
