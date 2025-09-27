@@ -2,11 +2,16 @@ const express = require('express');
 const app = express();
 const { awpMiddleware } = require('./server');
 
+// ✅ Применяем middleware ко ВСЕМ запросам
 app.use(awpMiddleware);
-app.use(express.static('.'));
+app.use(express.json());
 
 app.get('/', (req, res) => {
-  res.send('Добро пожаловать в защищенное веб-приложение!');
+  res.send('Xavfsiz veb-ilovaga xush kelibsiz!');
+});
+
+app.get('/about', (req, res) => {
+  res.send('Страница "О нас"');
 });
 
 app.listen(5000, () => {
