@@ -8,8 +8,9 @@ const cors = require('cors');
 const app = express();
 
 // === Middleware ===
-app.use(helmet());
 app.use(express.json());
+app.use(helmet());
+app.use(express.urlencoded({ extended: true })); // Для form-data
 app.use(cors({
   origin: true,
   credentials: true,
@@ -117,14 +118,16 @@ const botPatterns = {
 // === AI: Извлечение признаков ===
 function extractAiFeatures(req, ip, threatType) {
   const headers = req.headers;
-  const bodyStr = JSON.stringify(req.body);
-  const queryStr = JSON.stringify(req.query);
+  
+  // Безопасное преобразование в строку
+  const bodyStr = req.body ? JSON.stringify(req.body) : '';
+  const queryStr = req.query ? JSON.stringify(req.query) : '';
 
   return {
     R_t: Date.now(),                    // Request timestamp
     V_t: (bodyStr.length + queryStr.length), // Traffic volume
     S_t: threatType ? 1 : 0,            // Stealth level
-    T_t: req.originalUrl.length,        // URL complexity
+    T_t: req.originalUrl ? req.originalUrl.length : 0, // URL length
     Q_t: Object.keys({ ...req.query, ...req.body }).length, // Query params count
     user_agent_suspicious: /sqlmap|hydra|nmap|bot.*fake/i.test(headers['user-agent'] || '') ? 1 : 0,
     has_script: /<script|javascript:/i.test(bodyStr + queryStr) ? 1 : 0,
