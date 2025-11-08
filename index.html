@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WH - Web Himoya 1</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.15/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    function App() {
+      const [activeModule, setActiveModule] = React.useState('dashboard');
+      const [logs, setLogs] = React.useState([]);
+      const [blacklist, setBlacklist] = React.useState([]);
+      const [searchTerm, setSearchTerm] = React.useState('');
+      const [threatFilter, setThreatFilter] = React.useState('');
+      const [currentPage, setCurrentPage] = React.useState(1);
+      const [logsPerPage] = React.useState(10);
+      const [blacklistPerPage] = React.useState(10);
+      const [newBlacklistEntry, setNewBlacklistEntry] = React.useState('');
+      const [tempBlockDuration, setTempBlockDuration] = React.useState('1h');
+      const [saveStatus, setSaveStatus] = React.useState('');
+      const [saveStatusMessage, setSaveStatusMessage] = React.useState('');
+      const [errorMessage, setErrorMessage] = React.useState('');
+
+      // Настройки модулей
+      const [sqlSettings, setSqlSettings] = React.useState({
+        sqlProtection: true,
+        xssProtection: true,
+        slowlorisProtection: true,
+        clickjackingProtection: true,
+        hidePhpInfo: true,
+        filterParams: true,
+        mimeMismatchProtection: true,
+        sqlAutoBlacklist: true,
+        notificationEmail: 'admin@example.com'
+      });
+
+      const [dosSettings, setDosSettings] = React.useState({
+        dosProtection: true,
+        logThreats: true,
+        dosAutoBlacklist: true,
+        notificationEmail: 'admin@example.com',
+        customBlockPage: '/attacker-page'
+      });
+
+      const [spamSettings, setSpamSettings] = React.useState({
+        spamProtection: true,
+        logThreats: true,
+        spamAutoBlacklist: true,
+        notificationEmail: 'admin@example.com',
+        customBlockPage: '/attacker-page',
+        spamDatabaseUrls: []
+      });
+
+      const [proxySettings, setProxySettings] = React.useState({
+        proxyDetectionApi: true,
+        proxyDetectionHeaders: true,
+        proxyDetectionPortScan: false,
+        logThreats: true,
+        proxyAutoBlacklist: true,
+        notificationEmail: 'admin@example.com',
+        customBlockPage: '/attacker-page'
+      });
+
+      const [botSettings, setBotSettings] = React.useState({
+        detectMaliciousBots: true,
+        detectFakeBots: true,
+        detectAnonymousBots: true,
+        logThreats: true,
+        botsAutoBlacklist: true,
+        notificationEmail: 'admin@example.com',
+        customBlockPage: '/attacker-page'
+      });
+
+      const [aiSettings, setAiSettings] = React.useState({
+        pnhadEnabled: true,
+        whXgboostEnabled: true,
+        crnnLstmEnabled: true,
+        haedfsEnabled: true,
+        aiAutoBlacklist: true
+      });
+
+      // Загрузка данных
+      React.useEffect(() => {
+        fetch('http://185.47.174.65:3000/api/settings')
+          .then(r => r.json())
+          .then(data => {
+            if (data.sqlProtection !== undefined) setSqlSettings(prev => ({ ...prev, ...data }));
+            if (data.dosProtection !== undefined) setDosSettings(prev => ({ ...prev, ...data }));
+            if (data.spamProtection !== undefined) setSpamSettings(prev => ({ ...prev, ...data }));
+            if (data.proxyDetectionHeaders !== undefined) setProxySettings(prev => ({ ...prev, ...data }));
+            if (data.detectMaliciousBots !== undefined) setBotSettings(prev => ({ ...prev, ...data }));
+            if (data.pnhadEnabled !== undefined) setAiSettings(prev => ({ ...prev, ...data }));
+          })
+          .catch(err => console.error('Failed to load settings:', err));
+
+        fetch('http://185.47.174.65:3000/api/logs')
+          .then(r => r.json())
+          .then(data => setLogs(data))
+          .catch(err => console.error('Failed to load logs:', err));
+
+        fetch('http://185.47.174.65:3000/api/blacklist')
+          .then(r => r.json())
+          .then(data => setBlacklist(data))
+          .catch(err => console.error('Failed to load blacklist:', err));
+      }, []);
+
+      // Фильтрация и пагинация логов
+      const filteredLogs = logs.filter(log =>
+        (searchTerm === '' || 
+          log.ip.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          log.request_data.toLowerCase().includes(searchTerm.toLowerCase())
+        ) &&
+        (threatFilter === '' || log.threat_type === threatFilter)
+      );
+
+      const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+      const indexOfLastLog = currentPage * logsPerPage;
+      const indexOfFirstLog = indexOfLastLog - logsPerPage;
+      const currentLogs = filteredLogs.slice(indexOfFirstLog, indexOfLastLog);
+
+      // Фильтрация и пагинация черного списка
+      const filteredBlacklist = blacklist.filter(item =>
+        searchTerm === '' ||
+        item.entry.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      const totalBlacklistPages = Math.ceil(filteredBlacklist.length / blacklistPerPage);
+      const indexOfLastBlacklist = currentPage * blacklistPerPage;
+      const indexOfFirstBlacklist = indexOfLastBlacklist - blacklistPerPage;
+      const currentBlacklist = filteredBlacklist.slice(indexOfFirstBlacklist, indexOfLastBlacklist);
+
+      React.useEffect(() => {
+        setCurrentPage(1);
+      }, [searchTerm, threatFilter]);
+
+      // Сохранение настроек
+      const handleSaveSettings = async (settings, type) => {
+        setSaveStatus('saving');
+        try {
+          const response = await fetch('http://185.47.174.65:3000/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+          });
+
+          if (response.ok) {
+            setSaveStatus('success');
+            setSaveStatusMessage('Settings saved successfully!');
+            setTimeout(() => setSaveStatus(''), 3000);
+          } else {
+            const data = await response.json();
+            setSaveStatus('error');
+            setErrorMessage(data.error || 'Unknown error');
+          }
+        } catch (err) {
+          setSaveStatus('error');
+          setErrorMessage('Network error');
+          console.error('Save error:', err);
+        }
+      };
+
+      // Работа с черным списком
+      const handleAddToBlacklist = async () => {
+        if (!newBlacklistEntry || !newBlacklistEntry.trim()) {
+          alert('Введите IP или домен');
+          return;
+        }
+
+        const entry = newBlacklistEntry.trim();
+        let type = 'Other';
+        if (/^(\d{1,3}\.){3}\d{1,3}$/.test(entry)) {
+          type = 'IP';
+        } else if (/^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/.test(entry)) {
+          type = 'Domain';
+        }
+
+        try {
+          const duration = { '1h': 3600, '1d': 86400, '1w': 604800 }[tempBlockDuration] || 3600;
+          const expires_at = tempBlockDuration === 'permanent' ? null : new Date(Date.now() + duration * 1000).toISOString();
+
+          const response = await fetch('http://185.47.174.65:3000/api/blacklist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ entry, type, expires_at })
+          });
+
+          if (response.ok) {
+            setBlacklist([...blacklist, { 
+              id: Date.now(), 
+              entry, 
+              type,
+              expires_at,
+              created_at: new Date().toISOString()
+            }]);
+            setNewBlacklistEntry('');
+            setSaveStatus('success');
+            setSaveStatusMessage(`Entry "${entry}" added to blacklist${expires_at ? ` (expires: ${new Date(expires_at).toLocaleString()})` : ''}.`);
+            setTimeout(() => setSaveStatus(''), 3000);
+          } else {
+            const errData = await response.json();
+            setErrorMessage('Server error: ' + (errData.error || 'Unknown'));
+            setSaveStatus('error');
+          }
+        } catch (err) {
+          setErrorMessage('Network error: ' + err.message);
+          setSaveStatus('error');
+          console.error('Fetch error:', err);
+        }
+      };
+
+      const handleDeleteBlacklistEntry = async (id) => {
+        const entry = blacklist.find(e => e.id === id);
+        if (!entry) return;
+        try {
+          await fetch(`http://185.47.174.65:3000/api/blacklist/${encodeURIComponent(entry.entry)}`, {
+            method: 'DELETE'
+          });
+          setBlacklist(blacklist.filter(e => e.id !== id));
+          setSaveStatus('success');
+          setSaveStatusMessage(`Entry "${entry.entry}" removed from blacklist.`);
+          setTimeout(() => setSaveStatus(''), 3000);
+        } catch (err) {
+          setSaveStatus('error');
+          setErrorMessage('Failed to delete from blacklist');
+          console.error('Failed to delete from blacklist:', err);
+        }
+      };
+
+      const handleClearBlacklist = async () => {
+        if (!window.confirm('Are you sure you want to delete ALL entries from the blacklist? This cannot be undone.')) return;
+
+        try {
+          const response = await fetch('http://185.47.174.65:3000/api/blacklist', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+          if (response.ok) {
+            setBlacklist([]);
+            setSaveStatus('success');
+            setSaveStatusMessage('All entries removed from blacklist.');
+            setTimeout(() => setSaveStatus(''), 3000);
+          } else {
+            throw new Error('Failed to clear blacklist');
+          }
+        } catch (err) {
+          setSaveStatus('error');
+          setErrorMessage('Failed to clear blacklist');
+          console.error('Clear blacklist error:', err);
+        }
+      };
+
+      const handleImportFromFile = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const text = e.target.result;
+          const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line);
+          const newEntries = [];
+
+          for (const line of lines) {
+            let type = 'Other';
+            if (/^(\d{1,3}\.){3}\d{1,3}$/.test(line)) {
+              type = 'IP';
+            } else if (/^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/.test(line)) {
+              type = 'Domain';
+            }
+
+            try {
+              const response = await fetch('http://185.47.174.65:3000/api/blacklist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entry: line, type })
+              });
+
+              if (response.ok) {
+                newEntries.push({ 
+                  id: Date.now() + newEntries.length, 
+                  entry: line, 
+                  type,
+                  created_at: new Date().toISOString()
+                });
+              }
+            } catch (err) {
+              console.error('Failed to import:', line, err);
+            }
+          }
+
+          setBlacklist(prev => [...prev, ...newEntries]);
+          setSaveStatus('success');
+          setSaveStatusMessage(`Imported ${newEntries.length} entries from ${file.name}.`);
+          setTimeout(() => setSaveStatus(''), 3000);
+        };
+        reader.readAsText(file);
+      };
+
+      const handleBlockLog = async (logId) => {
+        const log = logs.find(l => l.id === logId);
+        if (!log) return;
+
+        try {
+          const response = await fetch('http://185.47.174.65:3000/api/blacklist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ entry: log.ip, type: 'IP' })
+          });
+
+          if (response.ok) {
+            setLogs(logs.filter(l => l.id !== logId));
+            setBlacklist([...blacklist, { 
+              id: Date.now(), 
+              entry: log.ip, 
+              type: 'IP',
+              created_at: new Date().toISOString()
+            }]);
+            setSaveStatus('success');
+            setSaveStatusMessage('IP successfully blocked!');
+            setTimeout(() => setSaveStatus(''), 3000);
+          }
+        } catch (err) {
+          setSaveStatus('error');
+          setErrorMessage('Failed to block IP');
+          console.error('Block error:', err);
+        }
+      };
+
+      const handleExportCSV = () => {
+        const headers = ['ID', 'IP', 'Threat Type', 'Date/Time', 'Browser', 'URL', 'Request Data', 'Actions Taken'];
+        const csvContent = [
+          headers.join(','),
+          ...filteredLogs.map(log => [
+            log.id,
+            `"${log.ip}"`,
+            `"${log.threat_type}"`,
+            `"${new Date(log.date_time).toISOString()}"`,
+            `"${log.browser || ''}"`,
+            `"${log.url || ''}"`,
+            `"${log.request_data || ''}"`,
+            `"${log.actions_taken || ''}"`
+          ].join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `threat-logs-${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+
+      const handleClearLogs = async () => {
+        if (!window.confirm('Are you sure you want to delete ALL logs? This cannot be undone.')) return;
+
+        try {
+          const response = await fetch('http://185.47.174.65:3000/api/logs', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+          if (response.ok) {
+            setLogs([]);
+            setSaveStatus('success');
+            setSaveStatusMessage('All logs cleared successfully!');
+            setTimeout(() => setSaveStatus(''), 3000);
+          } else {
+            throw new Error('Failed to clear logs');
+          }
+        } catch (err) {
+          setSaveStatus('error');
+          setErrorMessage('Failed to clear logs');
+          console.error('Clear logs error:', err);
+        }
+      };
+
+      // Статистика
+      const sqlXssCount = logs.filter(l => ['SQL Injection', 'XSS'].includes(l.threat_type)).length;
+      const dosCount = logs.filter(l => l.threat_type === 'DoS/DDoS').length;
+
+      // График активности (последние 7 дней) — ИСПРАВЛЕН
+      const last7Days = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        return d;
+      });
+
+      const dailyCounts = last7Days.map(date => {
+        const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        return logs.filter(log => {
+          const logDate = new Date(log.date_time).toISOString().split('T')[0];
+          return logDate === dateStr;
+        }).length;
+      });
+
+      const maxCount = Math.max(1, ...dailyCounts); // минимум 1
+
+      return (
+        <div className="flex h-screen bg-gray-100">
+          {/* Sidebar */}
+          <div className="w-64 bg-gray-800 text-white p-4">
+            <h1 className="text-2xl font-bold mb-6">WH ADMIN</h1>
+            <nav>
+              {[
+                { id: 'dashboard', name: 'Dashboard' },
+                { id: 'ai-models', name: 'AI models' },
+                { id: 'sql-xss-slowloris', name: 'SQL/XSS/Slowloris Protection' },
+                { id: 'dos-ddos', name: 'DoS/DDoS Protection' },
+                { id: 'spam', name: 'Spam Protection' },
+                { id: 'proxy', name: 'Proxy Protection' },
+                { id: 'bots', name: 'Bot Protection' },
+                { id: 'logs', name: 'Threat Logs' },
+                { id: 'blacklist', name: 'Blacklist' },
+              ].map(module => (
+                <button
+                  key={module.id}
+                  className={`block w-full text-left p-2 mb-2 rounded ${activeModule === module.id ? 'bg-blue-600' : 'hover:bg-gray-700'}`}
+                  onClick={() => setActiveModule(module.id)}
+                >
+                  {module.name}
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1 p-6 overflow-auto">
+            {activeModule === 'dashboard' && (
+              <div>
+                <h2 className="text-3xl font-bold mb-4">Dashboard</h2>
+                <p className="text-gray-600 mb-6">Overview of system status and recent threats.</p>
+
+                {/* Статистика */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-white p-4 rounded shadow">
+                    <h3 className="font-bold text-gray-700">Total Threats Blocked</h3>
+                    <p className="text-3xl font-bold text-red-600">{logs.length}</p>
+                  </div>
+                  <div className="bg-white p-4 rounded shadow">
+                    <h3 className="font-bold text-gray-700">Active Blacklist Entries</h3>
+                    <p className="text-3xl font-bold text-blue-600">{blacklist.length}</p>
+                  </div>
+                  <div className="bg-white p-4 rounded shadow">
+                    <h3 className="font-bold text-gray-700">SQL/XSS Attacks</h3>
+                    <p className="text-3xl font-bold text-yellow-600">{sqlXssCount}</p>
+                  </div>
+                  <div className="bg-white p-4 rounded shadow">
+                    <h3 className="font-bold text-gray-700">DoS/DDoS Attempts</h3>
+                    <p className="text-3xl font-bold text-orange-600">{dosCount}</p>
+                  </div>
+                </div>
+
+                {/* Статус сервисов */}
+                <div className="bg-white p-4 rounded shadow mb-6">
+                  <h3 className="font-bold mb-3">System Status</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                      <span>PostgreSQL: Connected</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                      <span>Nodemailer: Ready</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                      <span>Protection: Active</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* График активности */}
+                <div className="bg-white p-4 rounded shadow mb-6">
+                  <h3 className="font-bold mb-3">Threat Activity (Last 7 Days)</h3>
+                  <div className="h-40 flex items-end justify-between space-x-1 text-xs">
+                    {last7Days.map((date, i) => {
+                      const dateStr = date.toISOString().split('T')[0];
+                      const count = dailyCounts[i];
+                      const height = count > 0 ? `${(count / maxCount) * 100}%` : '5%';
+
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center group">
+                          <div
+                            className="w-full bg-gradient-to-t from-red-500 to-red-300 rounded-t transition-all duration-200 group-hover:from-red-600 group-hover:to-red-400 flex items-end justify-center"
+                            style={{ height, minHeight: '5px' }}
+                            title={`${date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}: ${count} threats`}
+                          >
+                            <span className="text-white text-xs font-bold drop-shadow-sm">
+                              {count}
+                            </span>
+                          </div>
+                          <span className="mt-1 text-gray-600 font-medium">
+                            {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Последние угрозы */}
+                <div className="bg-white p-4 rounded shadow">
+                  <h3 className="font-bold mb-3">Recent Threats</h3>
+                  {logs.length > 0 ? (
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-gray-300 p-2 text-left">IP Address</th>
+                          <th className="border border-gray-300 p-2 text-left">Type</th>
+                          <th className="border border-gray-300 p-2 text-left">Time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {logs.slice(0, 5).map(log => (
+                          <tr key={log.id} className="hover:bg-gray-50">
+                            <td className="border border-gray-300 p-2 font-mono">{log.ip}</td>
+                            <td className="border border-gray-300 p-2">
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                log.threat_type === 'SQL Injection' ? 'bg-red-100 text-red-800' :
+                                log.threat_type === 'XSS' ? 'bg-yellow-100 text-yellow-800' :
+                                log.threat_type === 'DoS/DDoS' ? 'bg-orange-100 text-orange-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {log.threat_type}
+                              </span>
+                            </td>
+                            <td className="border border-gray-300 p-2 text-gray-600">
+                              {new Date(log.date_time).toLocaleTimeString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p className="text-gray-500">No threats detected yet.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeModule === 'ai-models' && (
+              <div>
+                <h2 className="text-3xl font-bold mb-4">AI models</h2>
+                <div className="bg-white p-4 rounded shadow">
+                  <h3 className="font-bold mb-3">Configuration</h3>
+                  <div className="space-y-3">
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={aiSettings.pnhadEnabled} 
+                        onChange={(e) => setAiSettings({...aiSettings, pnhadEnabled: e.target.checked})}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable PNHAD (Poisson-Normal Hybrid Anomaly Detection)</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={aiSettings.whXgboostEnabled} 
+                        onChange={(e) => setAiSettings({...aiSettings, whXgboostEnabled: e.target.checked})}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable WH-XGBoost (XGBoost Classifier)</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={aiSettings.crnnLstmEnabled} 
+                        onChange={(e) => setAiSettings({...aiSettings, crnnLstmEnabled: e.target.checked})}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable WH-CRNN_LSTM (Hybrid CRNN-LSTM)</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={aiSettings.haedfsEnabled} 
+                        onChange={(e) => setAiSettings({...aiSettings, haedfsEnabled: e.target.checked})}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable HAEDFS (Hybrid Adaptive Ensemble with Dynamic Feature Selection)</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={aiSettings.aiAutoBlacklist} 
+                        onChange={(e) => setAiSettings({...aiSettings, aiAutoBlacklist: e.target.checked})}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Auto-blacklist IPs detected by AI</span>
+                    </label>
+                    <button 
+                      onClick={() => handleSaveSettings(aiSettings, 'ai')}
+                      disabled={saveStatus === 'saving'}
+                      className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors disabled:opacity-70"
+                    >
+                      {saveStatus === 'saving' ? 'Saving...' : 'Save AI Settings'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded shadow mt-6">
+                  <h3 className="font-bold mb-3">AI Decision Logic</h3>
+                  <ul className="text-sm space-y-1">
+                    <li>• All modules work together: <strong>rules + AI</strong></li>
+                    <li>• Decision based on <strong>combined confidence score</strong></li>
+                    <li>• High-confidence threats (> 0.65) are blocked automatically</li>
+                    <li>• Features used: <code>R_t, V_t, S_t, T_t, Q_t</code></li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {activeModule === 'sql-xss-slowloris' && (
+              <div>
+                <h2 className="text-3xl font-bold mb-4">SQL/XSS/Slowloris Protection</h2>
+                <div className="bg-white p-4 rounded shadow">
+                  {saveStatus === 'success' && (
+                    <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">
+                      {saveStatusMessage}
+                    </div>
+                  )}
+                  {saveStatus === 'error' && (
+                    <div className="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
+                      Failed to save settings. {errorMessage}
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={sqlSettings.sqlProtection} 
+                        onChange={(e) => setSqlSettings({ ...sqlSettings, sqlProtection: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable SQL Injection Protection</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={sqlSettings.xssProtection} 
+                        onChange={(e) => setSqlSettings({ ...sqlSettings, xssProtection: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable XSS Protection</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={sqlSettings.slowlorisProtection} 
+                        onChange={(e) => setSqlSettings({ ...sqlSettings, slowlorisProtection: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable Slowloris Protection</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={sqlSettings.clickjackingProtection} 
+                        onChange={(e) => setSqlSettings({ ...sqlSettings, clickjackingProtection: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable Clickjacking Protection</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={sqlSettings.hidePhpInfo} 
+                        onChange={(e) => setSqlSettings({ ...sqlSettings, hidePhpInfo: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Hide PHP Information</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={sqlSettings.filterParams} 
+                        onChange={(e) => setSqlSettings({ ...sqlSettings, filterParams: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Filter Incoming Parameters</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={sqlSettings.mimeMismatchProtection} 
+                        onChange={(e) => setSqlSettings({ ...sqlSettings, mimeMismatchProtection: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Prevent MIME-Type Mismatch Attacks</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={sqlSettings.sqlAutoBlacklist} 
+                        onChange={(e) => setSqlSettings({ ...sqlSettings, sqlAutoBlacklist: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Auto-Blacklist IPs</span>
+                    </label>
+                    <div className="mt-4">
+                      <label className="block mb-2 font-medium">Email for Notifications</label>
+                      <input 
+                        type="email" 
+                        value={sqlSettings.notificationEmail}
+                        onChange={(e) => setSqlSettings({ ...sqlSettings, notificationEmail: e.target.value })}
+                        className="border p-2 w-full rounded text-sm"
+                        placeholder="admin@example.com"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => handleSaveSettings(sqlSettings, 'sql')}
+                      disabled={saveStatus === 'saving'}
+                      className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                      {saveStatus === 'saving' ? 'Saving...' : 'Save Settings'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeModule === 'dos-ddos' && (
+              <div>
+                <h2 className="text-3xl font-bold mb-4">DoS/DDoS Protection</h2>
+                <div className="bg-white p-4 rounded shadow">
+                  {saveStatus === 'success' && (
+                    <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">
+                      {saveStatusMessage}
+                    </div>
+                  )}
+                  {saveStatus === 'error' && (
+                    <div className="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
+                      Failed to save settings. {errorMessage}
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={dosSettings.dosProtection} 
+                        onChange={(e) => setDosSettings({ ...dosSettings, dosProtection: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable DoS/DDoS Protection</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={dosSettings.logThreats} 
+                        onChange={(e) => setDosSettings({ ...dosSettings, logThreats: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Log Threats</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={dosSettings.dosAutoBlacklist} 
+                        onChange={(e) => setDosSettings({ ...dosSettings, dosAutoBlacklist: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Auto-Blacklist IPs</span>
+                    </label>
+                    <div className="mt-4">
+                      <label className="block mb-2 font-medium">Email for Notifications</label>
+                      <input 
+                        type="email" 
+                        value={dosSettings.notificationEmail}
+                        onChange={(e) => setDosSettings({ ...dosSettings, notificationEmail: e.target.value })}
+                        className="border p-2 w-full rounded text-sm"
+                        placeholder="admin@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block mb-2 font-medium">Custom Page URL for Attackers</label>
+                      <input 
+                        type="text" 
+                        value={dosSettings.customBlockPage}
+                        onChange={(e) => setDosSettings({ ...dosSettings, customBlockPage: e.target.value })}
+                        className="border p-2 w-full rounded text-sm"
+                        placeholder="/blocked.html"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => handleSaveSettings(dosSettings, 'dos')}
+                      disabled={saveStatus === 'saving'}
+                      className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                      {saveStatus === 'saving' ? 'Saving...' : 'Save Settings'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeModule === 'spam' && (
+              <div>
+                <h2 className="text-3xl font-bold mb-4">Spam Protection</h2>
+                <div className="bg-white p-4 rounded shadow">
+                  {saveStatus === 'success' && (
+                    <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">
+                      {saveStatusMessage}
+                    </div>
+                  )}
+                  {saveStatus === 'error' && (
+                    <div className="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
+                      Failed to save settings. {errorMessage}
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block mb-2 font-medium">Spam Database URLs</label>
+                      {spamSettings.spamDatabaseUrls.map((url, index) => (
+                        <div key={index} className="flex gap-2 mb-2">
+                          <input
+                            type="text"
+                            value={url}
+                            onChange={(e) => {
+                              const newUrls = [...spamSettings.spamDatabaseUrls];
+                              newUrls[index] = e.target.value;
+                              setSpamSettings({ ...spamSettings, spamDatabaseUrls: newUrls });
+                            }}
+                            className="border p-2 flex-1 rounded text-sm"
+                            placeholder="https://example.com/spam-db.txt"
+                          />
+                          <button
+                            onClick={() => {
+                              const newUrls = spamSettings.spamDatabaseUrls.filter((_, i) => i !== index);
+                              setSpamSettings({ ...spamSettings, spamDatabaseUrls: newUrls });
+                            }}
+                            className="bg-red-600 text-white px-2 py-1 rounded text-sm hover:bg-red-700"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => setSpamSettings({
+                          ...spamSettings,
+                          spamDatabaseUrls: [...spamSettings.spamDatabaseUrls, '']
+                        })}
+                        className="text-sm text-blue-600 hover:underline"
+                      >
+                        + Add URL
+                      </button>
+                    </div>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={spamSettings.spamProtection} 
+                        onChange={(e) => setSpamSettings({ ...spamSettings, spamProtection: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable Spam Protection</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={spamSettings.logThreats} 
+                        onChange={(e) => setSpamSettings({ ...spamSettings, logThreats: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Log Threats</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={spamSettings.spamAutoBlacklist} 
+                        onChange={(e) => setSpamSettings({ ...spamSettings, spamAutoBlacklist: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Auto-Blacklist IPs</span>
+                    </label>
+                    <div className="mt-4">
+                      <label className="block mb-2 font-medium">Email for Notifications</label>
+                      <input 
+                        type="email" 
+                        value={spamSettings.notificationEmail}
+                        onChange={(e) => setSpamSettings({ ...spamSettings, notificationEmail: e.target.value })}
+                        className="border p-2 w-full rounded text-sm"
+                        placeholder="admin@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block mb-2 font-medium">Custom Page URL for Attackers</label>
+                      <input 
+                        type="text" 
+                        value={spamSettings.customBlockPage}
+                        onChange={(e) => setSpamSettings({ ...spamSettings, customBlockPage: e.target.value })}
+                        className="border p-2 w-full rounded text-sm"
+                        placeholder="/blocked.html"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => handleSaveSettings(spamSettings, 'spam')}
+                      disabled={saveStatus === 'saving'}
+                      className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                      {saveStatus === 'saving' ? 'Saving...' : 'Save Settings'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeModule === 'proxy' && (
+              <div>
+                <h2 className="text-3xl font-bold mb-4">Proxy Protection</h2>
+                <div className="bg-white p-4 rounded shadow">
+                  {saveStatus === 'success' && (
+                    <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">
+                      {saveStatusMessage}
+                    </div>
+                  )}
+                  {saveStatus === 'error' && (
+                    <div className="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
+                      Failed to save settings. {errorMessage}
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={proxySettings.proxyDetectionApi} 
+                        onChange={(e) => setProxySettings({ ...proxySettings, proxyDetectionApi: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable Proxy Detection (API)</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={proxySettings.proxyDetectionHeaders} 
+                        onChange={(e) => setProxySettings({ ...proxySettings, proxyDetectionHeaders: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable Proxy Detection (HTTP Headers)</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={proxySettings.proxyDetectionPortScan} 
+                        onChange={(e) => setProxySettings({ ...proxySettings, proxyDetectionPortScan: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Enable Proxy Detection (Port Scanning)</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={proxySettings.logThreats} 
+                        onChange={(e) => setProxySettings({ ...proxySettings, logThreats: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Log Threats</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={proxySettings.proxyAutoBlacklist} 
+                        onChange={(e) => setProxySettings({ ...proxySettings, proxyAutoBlacklist: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Auto-Blacklist IPs</span>
+                    </label>
+                    <div className="mt-4">
+                      <label className="block mb-2 font-medium">Email for Notifications</label>
+                      <input 
+                        type="email" 
+                        value={proxySettings.notificationEmail}
+                        onChange={(e) => setProxySettings({ ...proxySettings, notificationEmail: e.target.value })}
+                        className="border p-2 w-full rounded text-sm"
+                        placeholder="admin@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block mb-2 font-medium">Custom Page URL for Attackers</label>
+                      <input 
+                        type="text" 
+                        value={proxySettings.customBlockPage}
+                        onChange={(e) => setProxySettings({ ...proxySettings, customBlockPage: e.target.value })}
+                        className="border p-2 w-full rounded text-sm"
+                        placeholder="/blocked.html"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => handleSaveSettings(proxySettings, 'proxy')}
+                      disabled={saveStatus === 'saving'}
+                      className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                      {saveStatus === 'saving' ? 'Saving...' : 'Save Settings'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeModule === 'bots' && (
+              <div>
+                <h2 className="text-3xl font-bold mb-4">Bot Protection</h2>
+                <div className="bg-white p-4 rounded shadow">
+                  {saveStatus === 'success' && (
+                    <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">
+                      {saveStatusMessage}
+                    </div>
+                  )}
+                  {saveStatus === 'error' && (
+                    <div className="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
+                      Failed to save settings. {errorMessage}
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={botSettings.detectMaliciousBots} 
+                        onChange={(e) => setBotSettings({ ...botSettings, detectMaliciousBots: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Detect Malicious Bots</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={botSettings.detectFakeBots} 
+                        onChange={(e) => setBotSettings({ ...botSettings, detectFakeBots: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Detect Fake Bots</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={botSettings.detectAnonymousBots} 
+                        onChange={(e) => setBotSettings({ ...botSettings, detectAnonymousBots: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Detect Anonymous Bots</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={botSettings.logThreats} 
+                        onChange={(e) => setBotSettings({ ...botSettings, logThreats: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Log Threats</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={botSettings.botsAutoBlacklist} 
+                        onChange={(e) => setBotSettings({ ...botSettings, botsAutoBlacklist: e.target.checked })}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span>Auto-Blacklist IPs</span>
+                    </label>
+                    <div className="mt-4">
+                      <label className="block mb-2 font-medium">Email for Notifications</label>
+                      <input 
+                        type="email" 
+                        value={botSettings.notificationEmail}
+                        onChange={(e) => setBotSettings({ ...botSettings, notificationEmail: e.target.value })}
+                        className="border p-2 w-full rounded text-sm"
+                        placeholder="admin@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block mb-2 font-medium">Custom Page URL for Attackers</label>
+                      <input 
+                        type="text" 
+                        value={botSettings.customBlockPage}
+                        onChange={(e) => setBotSettings({ ...botSettings, customBlockPage: e.target.value })}
+                        className="border p-2 w-full rounded text-sm"
+                        placeholder="/blocked.html"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => handleSaveSettings(botSettings, 'bots')}
+                      disabled={saveStatus === 'saving'}
+                      className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                      {saveStatus === 'saving' ? 'Saving...' : 'Save Settings'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeModule === 'logs' && (
+              <div>
+                <h2 className="text-3xl font-bold mb-4">Threat Logs</h2>
+
+                {saveStatus === 'success' && (
+                  <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">
+                    {saveStatusMessage}
+                  </div>
+                )}
+                {saveStatus === 'error' && (
+                  <div className="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
+                    {errorMessage}
+                  </div>
+                )}
+
+                <div className="bg-white p-4 rounded shadow mb-4 space-y-3">
+                  <div className="flex flex-wrap gap-4">
+                    <input 
+                      type="text" 
+                      className="border p-2 flex-1 min-w-48 rounded"
+                      placeholder="Search by IP, details..." 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+
+                    <select
+                      value={threatFilter}
+                      onChange={(e) => setThreatFilter(e.target.value)}
+                      className="border p-2 rounded"
+                    >
+                      <option value="">All Threat Types</option>
+                      <option value="SQL Injection">SQL Injection</option>
+                      <option value="XSS">XSS</option>
+                      <option value="Slowloris">Slowloris</option>
+                      <option value="DoS/DDoS">DoS/DDoS</option>
+                      <option value="Spam IP">Spam IP</option>
+                      <option value="Proxy (Headers)">Proxy</option>
+                      <option value="Malicious Bot">Malicious Bot</option>
+                      <option value="Fake Bot">Fake Bot</option>
+                      <option value="Anonymous Bot">Anonymous Bot</option>
+                    </select>
+
+                    <div className="flex gap-2 ml-auto">
+                      <button
+                        onClick={handleExportCSV}
+                        className="bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700 transition"
+                      >
+                        Export CSV
+                      </button>
+                      <button
+                        onClick={handleClearLogs}
+                        className="bg-red-600 text-white px-3 py-2 rounded text-sm hover:bg-red-700 transition"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded shadow overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gray-200">
+                        <th className="border border-gray-300 p-2 text-left">IP Address</th>
+                        <th className="border border-gray-300 p-2 text-left">Date/Time</th>
+                        <th className="border border-gray-300 p-2 text-left">Threat Type</th>
+                        <th className="border border-gray-300 p-2 text-left">Details</th>
+                        <th className="border border-gray-300 p-2 text-left">Actions Taken</th>
+                        <th className="border border-gray-300 p-2 text-left">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentLogs.length > 0 ? (
+                        currentLogs.map(log => {
+                          const actions = log.actions_taken ? log.actions_taken.split(', ') : ['Request blocked'];
+                          return (
+                            <tr key={log.id} className="hover:bg-gray-50">
+                              <td className="border border-gray-300 p-2 font-mono">{log.ip}</td>
+                              <td className="border border-gray-300 p-2">
+                                {new Date(log.date_time).toLocaleString()}
+                              </td>
+                              <td className="border border-gray-300 p-2">
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                  log.threat_type === 'SQL Injection' ? 'bg-red-100 text-red-800' :
+                                  log.threat_type === 'XSS' ? 'bg-yellow-100 text-yellow-800' :
+                                  log.threat_type === 'DoS/DDoS' ? 'bg-orange-100 text-orange-800' :
+                                  log.threat_type.includes('Bot') ? 'bg-blue-100 text-blue-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {log.threat_type}
+                                </span>
+                              </td>
+                              <td className="border border-gray-300 p-2">
+                                <span className="text-xs text-gray-600">{log.request_data}</span>
+                              </td>
+                              <td className="border border-gray-300 p-2">
+                                {actions.map((action, i) => (
+                                  <div key={i} className="flex items-center text-sm mb-1">
+                                    {action === 'Request blocked' && (
+                                      <svg className="w-3 h-3 mr-1 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                      </svg>
+                                    )}
+                                    {action === 'IP auto-blacklisted' && (
+                                      <svg className="w-3 h-3 mr-1 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                      </svg>
+                                    )}
+                                    {action === 'Email notification sent' && (
+                                      <svg className="w-3 h-3 mr-1 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                                      </svg>
+                                    )}
+                                    <span>{action}</span>
+                                  </div>
+                                ))}
+                              </td>
+                              <td className="border border-gray-300 p-2">
+                                <button 
+                                  onClick={() => handleBlockLog(log.id)}
+                                  className="bg-red-600 text-white px-2 py-1 rounded text-sm hover:bg-red-700 transition"
+                                >
+                                  Block IP
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan="6" className="border border-gray-300 p-4 text-center text-gray-500">
+                            No logs found matching your criteria.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+
+                  {totalPages > 1 && (
+                    <div className="flex justify-between items-center mt-4">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      <span>Page {currentPage} of {totalPages}</span>
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeModule === 'blacklist' && (
+              <div>
+                <h2 className="text-3xl font-bold mb-4">Blacklist</h2>
+                <div className="bg-white p-4 rounded shadow">
+                  {saveStatus === 'success' && (
+                    <div className="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">
+                      {saveStatusMessage}
+                    </div>
+                  )}
+                  {saveStatus === 'error' && (
+                    <div className="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
+                      {errorMessage}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-4 mb-4">
+                    <input 
+                      type="text" 
+                      className="border p-2 flex-1 min-w-48 rounded"
+                      placeholder="Add IP, Domain, or other entry"
+                      value={newBlacklistEntry}
+                      onChange={(e) => setNewBlacklistEntry(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddToBlacklist()}
+                    />
+                    
+                    <select
+                      value={tempBlockDuration}
+                      onChange={(e) => setTempBlockDuration(e.target.value)}
+                      className="border p-2 rounded"
+                    >
+                      <option value="1h">Block for 1 hour</option>
+                      <option value="1d">Block for 1 day</option>
+                      <option value="1w">Block for 1 week</option>
+                      <option value="permanent">Permanent</option>
+                    </select>
+
+                    <button 
+                      onClick={handleAddToBlacklist}
+                      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-4 mb-4">
+                    <label className="flex items-center">
+                      <input 
+                        type="file" 
+                        accept=".txt,.csv" 
+                        onChange={handleImportFromFile}
+                        className="hidden"
+                        id="import-file"
+                      />
+                      <label htmlFor="import-file" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer">
+                        Import from File
+                      </label>
+                    </label>
+
+                    <button 
+                      onClick={handleClearBlacklist}
+                      className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+
+                  {/* Поиск */}
+                  <div className="mb-4">
+                    <input 
+                      type="text" 
+                      className="border p-2 w-full rounded"
+                      placeholder="Search in blacklist (IP, domain, etc.)"
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                    />
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-gray-200">
+                          <th className="border border-gray-300 p-2 text-left">Entry</th>
+                          <th className="border border-gray-300 p-2 text-left">Type</th>
+                          <th className="border border-gray-300 p-2 text-left">Expires</th>
+                          <th className="border border-gray-300 p-2 text-left">Added</th>
+                          <th className="border border-gray-300 p-2 text-left">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {currentBlacklist.length > 0 ? (
+                          currentBlacklist.map(entry => (
+                            <tr key={entry.id} className="hover:bg-gray-50">
+                              <td className="border border-gray-300 p-2 font-mono">{entry.entry}</td>
+                              <td className="border border-gray-300 p-2">
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                  entry.type === 'IP' ? 'bg-red-100 text-red-800' :
+                                  entry.type === 'Domain' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {entry.type}
+                                </span>
+                              </td>
+                              <td className="border border-gray-300 p-2 text-sm">
+                                {entry.expires_at ? new Date(entry.expires_at).toLocaleString() : 'Never'}
+                              </td>
+                              <td className="border border-gray-300 p-2 text-sm text-gray-600">
+                                {entry.created_at ? new Date(entry.created_at).toLocaleString() : 'Unknown'}
+                              </td>
+                              <td className="border border-gray-300 p-2">
+                                <button 
+                                  onClick={() => handleDeleteBlacklistEntry(entry.id)}
+                                  className="bg-red-600 text-white px-2 py-1 rounded text-sm hover:bg-red-700 transition-colors"
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="5" className="border border-gray-300 p-4 text-center text-gray-500">
+                              No entries found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+
+                    {/* Пагинация */}
+                    {totalBlacklistPages > 1 && (
+                      <div className="flex justify-between items-center mt-4">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                          className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Previous
+                        </button>
+                        <span>Page {currentPage} of {totalBlacklistPages}</span>
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalBlacklistPages))}
+                          disabled={currentPage === totalBlacklistPages}
+                          className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+name: CI/CD Pipeline
+
+# Qachon ishga tushadi
+on:
+  push:
+    branches:
+      - master    # main branch push qilinsa workflow ishlaydi
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Kodni GitHub’dan olish
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2. Node.js versiyasini sozlash (optional, agar runner-da Node.js kerak bo‘lsa)
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      # 3. Dependencies o‘rnatish
+      - name: Install dependencies
+        run: npm install
+
+      # 4. Serverga deploy qilish
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /home/user/awp-project
+            git pull origin master
+            npm install --production
+            pm2 restart myapp
+            pm2 restart mysite
